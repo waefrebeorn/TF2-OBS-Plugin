@@ -14,4 +14,9 @@ This code creates a **TF2 OBS Plugin** that enhances your Team Fortress 2 stream
 * It identifies relevant events based on specific patterns in the log messages.
 * When an event is triggered, it sends commands to OBS via WebSocket to change scenes or manipulate sources.
 
+**True Irony**
+* simpleobsws and obsws-python, the plugins used as requirements in this project are both broken in obs currently and you have to rewrite the hash stuff 
+* credit to mud_punk in thread https://obsproject.com/forum/threads/python-script-to-connect-to-obs-websocket-server-help.173395/ for noting the exact code he used
+* Please notify the obs team to update documentation and plugin recommendations that use these libraries 
+
 **Enhance your TF2 streams with dynamic overlays and scene transitions based on your in-game actions!** 
