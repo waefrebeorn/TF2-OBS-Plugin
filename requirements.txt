@@ -1,3 +1,4 @@
 watchdog
 tk
-websocket
+simpleobsws
+obsws-python
