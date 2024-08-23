@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.DEBUG)
 LOG = logging.getLogger(__name__)
 
 # Default values
-default_tf2_path = "K:/SteamLibrary/steamapps/common/Team Fortress 2/tf/console.log"
+default_tf2_path = "C:/Program Files (x86)/Steam/steamapps/common/Team Fortress 2/tf/console.log"
 obs_host_default = "localhost"
 obs_port_default = 4455
 obs_password_default = "obspasswordfoundinconnectionsettings"
