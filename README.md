@@ -23,11 +23,11 @@ This code creates a **TF2 OBS Plugin** that enhances your Team Fortress 2 stream
 
 **Here's a list of OBS scenes and media sources you need to create based on the provided Python code:**
 
-* **Scenes:**
+**Scenes:**
 
 * NotificationScene: This scene will be used specifically for displaying notifications during the game.
 
-* **Media Sources:**
+**Media Sources:**
 
 * KillOverlay: This media source will be triggered when you get a kill in TF2.
 
