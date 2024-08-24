@@ -8,10 +8,6 @@ from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 import threading
 import traceback
-import websocket
-import json
-import base64
-import hashlib
 import queue
 import logging
 
@@ -19,79 +15,17 @@ import logging
 logging.basicConfig(level=logging.DEBUG)
 LOG = logging.getLogger(__name__)
 
+# Import your OBSWebSocket and TF2Events classes
+from obs_websocket import OBSWebSocket
+from tf2_events import TF2Events
+
 # Default values
 default_tf2_path = "C:/Program Files (x86)/Steam/steamapps/common/Team Fortress 2/tf/console.log"
-obs_host_default = "localhost"
+obs_host_default = "192.168.1.192"
 obs_port_default = 4455
-obs_password_default = "obspasswordfoundinconnectionsettings"
+obs_password_default = "YourObsPassword"
 steam_username_default = "WaefreBeorn"
 steam_id_default = "76561198027081583"
-
-class OBSWebSocket:
-    def __init__(self, host, port, password):
-        self.host = host
-        self.port = port
-        self.password = password
-        self.ws = None
-        self.connected = False
-
-    def connect(self):
-        url = f"ws://{self.host}:{self.port}"
-        self.ws = websocket.WebSocket()
-        self.ws.connect(url)
-        self._auth()
-        self.connected = True
-
-    def _build_auth_string(self, salt, challenge):
-        secret = base64.b64encode(hashlib.sha256((self.password + salt).encode('utf-8')).digest())
-        auth = base64.b64encode(hashlib.sha256(secret + challenge.encode('utf-8')).digest()).decode('utf-8')
-        return auth
-
-    def _auth(self):
-        message = self.ws.recv()
-        result = json.loads(message)
-        auth = self._build_auth_string(result['d']['authentication']['salt'], result['d']['authentication']['challenge'])
-
-        payload = {
-            "op": 1,
-            "d": {
-                "rpcVersion": 1,
-                "authentication": auth,
-                "eventSubscriptions": 1000 
-            }
-        }
-        self.ws.send(json.dumps(payload))
-        message = self.ws.recv()
-        # Assuming authentication was successful
-
-    def send_request(self, request_type, request_data=None):
-        if request_data is None:
-            request_data = {}
-        payload = {
-            "op": 6,
-            "d": {
-                "requestId": f"{request_type}Request",
-                "requestType": request_type,
-                "requestData": request_data
-            }
-        }
-        self.ws.send(json.dumps(payload))
-        return json.loads(self.ws.recv())
-
-    def set_current_scene(self, scene_name):
-        return self.send_request("SetCurrentProgramScene", {"sceneName": scene_name})
-
-    def set_scene_item_enabled(self, scene_name, source_name, enabled):
-        return self.send_request("SetSceneItemEnabled", {
-            "sceneName": scene_name,
-            "sceneItemId": source_name,
-            "sceneItemEnabled": enabled
-        })
-
-    def close(self):
-        if self.ws:
-            self.ws.close()
-        self.connected = False
 
 class TF2LogHandler(PatternMatchingEventHandler):
     def __init__(self, obs_client, log_file_path, player_name, debug_callback, stop_event):
@@ -103,6 +37,7 @@ class TF2LogHandler(PatternMatchingEventHandler):
         self.log_file_path = log_file_path
         self.last_position = self.get_file_size(log_file_path)
         self.debug_callback(f"Starting to monitor from position: {self.last_position}")
+        self.tf2_events = TF2Events(player_name) 
 
     def get_file_size(self, file_path):
         try:
@@ -130,38 +65,23 @@ class TF2LogHandler(PatternMatchingEventHandler):
             elif current_size < self.last_position:
                 self.debug_callback("Log file size decreased. File might have been truncated or replaced.")
                 self.last_position = 0
-                self.check_file()  # Recheck the file from the beginning
+                self.check_file() # Recheck the file from the beginning
         except Exception as e:
             self.debug_callback(f"Error reading log file: {e}")
             self.debug_callback(traceback.format_exc())
-            
+
     def process_new_lines(self, lines):
         for line in lines:
             if self.stop_event.is_set():
                 return
             self.debug_callback(f"New log line: {line.strip()}")
 
-            # Check for kill events
-            kill_event = re.search(r'(\w+) killed (\w+) with (\w+)\.', line)
-            if kill_event:
-                killer, victim, weapon = kill_event.groups()
-                self.debug_callback(f"Kill event detected: {killer} killed {victim} with {weapon}")
-                if killer == self.player_name:
-                    self.debug_callback(f"Player {self.player_name} made a kill with {weapon}")
-                    self.trigger_obs_effect("kill", weapon)
-                elif victim == self.player_name:
-                    self.debug_callback(f"Player {self.player_name} was killed by {weapon}")
-                    self.trigger_obs_effect("death", weapon)
+            event_data = self.tf2_events.process_log_line(line, self.debug_callback)
+            if event_data:
+                event_type, weapon, killstreak = event_data
+                self.trigger_obs_effect(event_type, weapon, killstreak) 
 
-            # Check for suicide event
-            suicide_event = re.search(r'(\w+) suicided\.', line)
-            if suicide_event:
-                player = suicide_event.group(1)
-                self.debug_callback(f"Suicide event detected: {player} suicided")
-                if player == self.player_name:
-                    self.trigger_obs_effect("suicide")
-
-    def trigger_obs_effect(self, event_type, weapon=None):
+    def trigger_obs_effect(self, event_type, weapon=None, killstreak=0):
         if self.stop_event.is_set():
             return
 
@@ -170,28 +90,157 @@ class TF2LogHandler(PatternMatchingEventHandler):
             return
 
         self.debug_callback(f"Triggering OBS effect: {event_type}" + (f" with {weapon}" if weapon else ""))
+
+        # Define a list of media source names for overlays (use snappier names)
+        overlay_sources = {
+            "kill": "Kill",
+            "death": "Death",
+            "suicide": "Suicide",
+            "capture": "Capture",
+            "notification": "Notif", 
+            "picked_up_intel": "PickedIntel",
+            "dropped_intel": "DroppedIntel",
+            "has_intel": "HasIntel",
+            "built_sentrygun": "BuiltSentry",
+            "built_dispenser": "BuiltDispenser",
+            "built_teleporter_entrance": "BuiltTeleEntrance",
+            "built_teleporter_exit": "BuiltTeleExit",
+            "destroyed_sentrygun": "DestroyedSentry",
+            "destroyed_dispenser": "DestroyedDispenser",
+            "destroyed_teleporter_entrance": "DestroyedTeleEntrance",
+            "destroyed_teleporter_exit": "DestroyedTeleExit",
+            "domination": "Domination",
+            "dominated": "Dominated",
+            "revenge": "Revenge",
+            "stunned": "Stunned",
+            "jarated": "Jarated",
+            "milked": "Milked",
+            "extinguished": "Extinguished",
+            "spawned": "Spawned",
+            "medic_uber": "MedicUber",
+            "medic_charge_deployed": "MedicCharge",
+            "spy_disguise_complete": "SpyDisguise",
+            "spy_backstab": "SpyBackstab",
+            "engineer_teleported": "EngiTeleport",
+            "sniper_headshot": "SniperHeadshot",
+            "pyro_airblast": "PyroAirblast",
+            "demoman_sticky_trap_triggered": "DemoTrap",
+            "heavy_eating": "HeavyEating",
+            "crit_boosted": "CritBoosted",
+            "mini_crit_boosted": "MiniCritBoosted",
+            "damage": "Damage",
+            "healed": "Healed",
+            "assist": "Assist",
+            "round_win": "RoundWin",
+            "round_stalemate": "RoundStalemate",
+            "match_win": "MatchWin",
+            "first_blood": "FirstBlood"
+            # Add even more mappings as needed!
+        }
+
         try:
+            if event_type in overlay_sources:
+                source_name = overlay_sources[event_type]
+
+                # Start the media source (make it visible)
+                self.obs_client.send_request("SetMediaSourceEnabled", {
+                    "sourceName": source_name,
+                    "sourceEnabled": True
+                })
+
+                time.sleep(2)  # Display the overlay for 2 seconds
+
+                # Stop the media source (make it invisible)
+                self.obs_client.send_request("SetMediaSourceEnabled", {
+                    "sourceName": source_name,
+                    "sourceEnabled": False
+                })
+
             if event_type == "kill":
-                self.obs_client.set_current_scene("KillScene")
-                self.obs_client.set_scene_item_enabled("KillScene", "KillOverlay", True)
-                time.sleep(2)
-                self.obs_client.set_scene_item_enabled("KillScene", "KillOverlay", False)
-            elif event_type == "death":
-                self.obs_client.set_current_scene("DeathScene")
-                self.obs_client.set_scene_item_enabled("DeathScene", "DeathOverlay", True)
-                time.sleep(2)
-                self.obs_client.set_scene_item_enabled("DeathScene", "DeathOverlay", False)
-            elif event_type == "suicide":
-                self.obs_client.set_current_scene("SuicideScene")
-                self.obs_client.set_scene_item_enabled("SuicideScene", "SuicideOverlay", True)
-                time.sleep(2)
-                self.obs_client.set_scene_item_enabled("SuicideScene", "SuicideOverlay", False)
+                # Update killstreak text source 
+                self.update_killstreak_display(killstreak) 
+
+            elif event_type.startswith("built_") or event_type.startswith("destroyed_"):
+                # Display a notification with the object type and action
+                object_type = event_type.split("_")[1]
+                action = "built" if event_type.startswith("built_") else "destroyed"
+                notification_text = f"{self.player_name} {action} a {object_type}"
+                self.display_notification(notification_text)
+
+            # Handle crit boosts, damage, healing, and assists
+            elif event_type in ["crit_boosted", "mini_crit_boosted", "damage", "healed", "assist"]:
+                target_player = weapon  # Reuse 'weapon' for the target player
+                notification_text = f"{self.player_name} {event_type} {target_player}"
+                if killstreak:  # If killstreak is provided (e.g., for damage or healing)
+                    notification_text += f" for {killstreak} damage" 
+                self.display_notification(notification_text)
+
+            # Handle round and match outcomes
+            elif event_type in ["round_win", "round_stalemate", "match_win", "first_blood"]:
+                notification_text = f"{event_type.replace('_', ' ').capitalize()}!"
+                self.display_notification(notification_text)
+
+            # ... (Add more elif blocks for other specific event types as needed)
+
             self.debug_callback(f"OBS effect for {event_type} triggered successfully")
             print(f"OBS effect for {event_type} triggered successfully!")
+
         except Exception as e:
             self.debug_callback(f"Failed to trigger OBS effect: {e}")
             self.debug_callback(traceback.format_exc())
             print(f"Failed to trigger OBS effect for {event_type}: {e}")
+
+    def update_killstreak_display(self, killstreak):
+        # Now implemented to update a text source in OBS
+        self.obs_client.send_request("SetTextGDIPlusProperties", {
+            "source": "KillstreakText",  # Replace with your actual text source name
+            "text": f"Killstreak: {killstreak}"
+        })
+
+    def display_notification(self, text):
+        self.obs_client.send_request("SetTextGDIPlusProperties", {
+            "source": "NotificationText", 
+            "text": text
+        })
+
+        # Briefly show the notification overlay
+        self.obs_client.set_scene_item_enabled("NotificationScene", "NotificationOverlay", True)
+        time.sleep(3)
+        self.obs_client.set_scene_item_enabled("NotificationScene", "NotificationOverlay", False)
+
+    def update_class_overlay(self, class_name):
+        # Map class names to media source names (replace with your actual source names)
+        class_media_sources = {
+            "Scout": "ScoutOverlay",
+            "Soldier": "SoldierOverlay",
+            "Pyro": "PyroOverlay",
+            "Demoman": "DemomanOverlay",
+            "Heavy": "HeavyOverlay",
+            "Engineer": "EngineerOverlay",
+            "Medic": "MedicOverlay",
+            "Sniper": "SniperOverlay",
+            "Spy": "SpyOverlay",
+            "Saxton Hale": "HaleOverlay"
+        }
+
+        if class_name in class_media_sources:
+            media_source_name = class_media_sources[class_name]
+
+            # Hide all class overlays first
+            for source_name in class_media_sources.values():
+                self.obs_client.send_request("SetMediaSourceEnabled", {
+                    "sourceName": source_name,
+                    "sourceEnabled": False
+                })
+
+            # Show the overlay for the current class
+            self.obs_client.send_request("SetMediaSourceEnabled", {
+                "sourceName": media_source_name,
+                "sourceEnabled": True
+            })
+
+        else:
+            self.debug_callback(f"Unknown class: {class_name}")
 
 class TF2OBSPlugin:
     def __init__(self, root):
@@ -264,10 +313,10 @@ class TF2OBSPlugin:
         # Stop monitoring button
         self.stop_button = tk.Button(self.root, text="Stop Monitoring", command=self.stop_script, state=tk.DISABLED)
         self.stop_button.grid(row=12, column=0, columnspan=3, padx=10, pady=20)
-        
+
     def select_directory(self):
         path = filedialog.askopenfilename(initialdir="/", title="Select TF2 console.log file",
-                                          filetypes=(("Log files", "*.log"), ("All files", "*.*")))
+                                            filetypes=(("Log files", "*.log"), ("All files", "*.*")))
         if path:
             self.tf2_dir_entry.delete(0, tk.END)
             self.tf2_dir_entry.insert(0, path)
@@ -305,7 +354,7 @@ class TF2OBSPlugin:
         self.stop_event.clear()
         self.debug_callback("Starting monitoring...")
         self.monitoring_thread = threading.Thread(target=self.run_monitoring,
-                                                  args=(tf2_path, player_name))
+                                                    args=(tf2_path, player_name))
         self.monitoring_thread.start()
         self.start_button.config(state=tk.DISABLED)
         self.stop_button.config(state=tk.NORMAL)
@@ -323,7 +372,7 @@ class TF2OBSPlugin:
         try:
             while not self.stop_event.is_set():
                 event_handler.check_file()
-                time.sleep(1)  # Check every second
+                time.sleep(1) # Check every second
         except Exception as e:
             self.debug_callback(f"Error in monitoring thread: {e}")
             self.debug_callback(traceback.format_exc())
@@ -360,16 +409,65 @@ def show_obs_info():
 To make the app work with OBS, please create the following:
 
 Scenes:
-- KillScene
-- DeathScene
-- SuicideScene
+- NotificationScene (for displaying notifications)
 
 Sources:
-- KillOverlay
-- DeathOverlay
-- SuicideOverlay
+- KillOverlay (Media Source)
+- DeathOverlay (Media Source)
+- SuicideOverlay (Media Source)
+- CaptureOverlay (Media Source)
+- NotificationOverlay (Media Source)
+- KillstreakText (Text GDI+ Source)
+- NotificationText (Text GDI+ Source)
+- ScoutOverlay (Media Source)
+- SoldierOverlay (Media Source)
+- PyroOverlay (Media Source)
+- DemomanOverlay (Media Source)
+- HeavyOverlay (Media Source)
+- EngineerOverlay (Media Source)
+- MedicOverlay (Media Source)
+- SniperOverlay (Media Source)
+- SpyOverlay (Media Source)
+- HaleOverlay (Media Source)
+- PickedIntel (Media Source)
+- DroppedIntel (Media Source)
+- HasIntel (Media Source)
+- BuiltSentry (Media Source)
+- BuiltDispenser (Media Source)
+- BuiltTeleEntrance (Media Source)
+- BuiltTeleExit (Media Source)
+- DestroyedSentry (Media Source)
+- DestroyedDispenser (Media Source)
+- DestroyedTeleEntrance (Media Source)
+- DestroyedTeleExit (Media Source)
+- Domination (Media Source)
+- Dominated (Media Source)
+- Revenge (Media Source)
+- Stunned (Media Source)
+- Jarated (Media Source)
+- Milked (Media Source)
+- Extinguished (Media Source)
+- Spawned (Media Source)
+- MedicUber (Media Source)
+- MedicCharge (Media Source)
+- SpyDisguise (Media Source)
+- SpyBackstab (Media Source)
+- EngiTeleport (Media Source)
+- SniperHeadshot (Media Source)
+- PyroAirblast (Media Source)
+- DemoTrap (Media Source)
+- HeavyEating (Media Source)
+- CritBoosted (Media Source)
+- MiniCritBoosted (Media Source)
+- Damage (Media Source)
+- Healed (Media Source)
+- Assist (Media Source)
+- RoundWin (Media Source)
+- RoundStalemate (Media Source)
+- MatchWin (Media Source)
+- FirstBlood (Media Source)
 
-Ensure that these names match exactly in OBS. The app will trigger these scenes and sources based on your in-game events.
+Ensure that these names match exactly in OBS. The app will trigger these sources based on your in-game events.
 
 Important:
 Make sure to add -condebug to TF2 launch options to enable console output logging.
@@ -399,4 +497,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-            
