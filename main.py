@@ -21,9 +21,9 @@ from tf2_events import TF2Events
 
 # Default values
 default_tf2_path = "C:/Program Files (x86)/Steam/steamapps/common/Team Fortress 2/tf/console.log"
-obs_host_default = "192.168.1.192"
+obs_host_default = "192.168.1.9"
 obs_port_default = 4455
-obs_password_default = "YourObsPassword"
+obs_password_default = "clPsOg7Mv1u5LrNW"
 steam_username_default = "WaefreBeorn"
 steam_id_default = "76561198027081583"
 
@@ -148,7 +148,7 @@ class TF2LogHandler(PatternMatchingEventHandler):
                     "sourceEnabled": True
                 })
 
-                time.sleep(2)  # Display the overlay for 2 seconds
+                time.sleep(2) # Display the overlay for 2 seconds
 
                 # Stop the media source (make it invisible)
                 self.obs_client.send_request("SetMediaSourceEnabled", {
@@ -169,9 +169,9 @@ class TF2LogHandler(PatternMatchingEventHandler):
 
             # Handle crit boosts, damage, healing, and assists
             elif event_type in ["crit_boosted", "mini_crit_boosted", "damage", "healed", "assist"]:
-                target_player = weapon  # Reuse 'weapon' for the target player
+                target_player = weapon # Reuse 'weapon' for the target player
                 notification_text = f"{self.player_name} {event_type} {target_player}"
-                if killstreak:  # If killstreak is provided (e.g., for damage or healing)
+                if killstreak: # If killstreak is provided (e.g., for damage or healing)
                     notification_text += f" for {killstreak} damage" 
                 self.display_notification(notification_text)
 
@@ -179,8 +179,6 @@ class TF2LogHandler(PatternMatchingEventHandler):
             elif event_type in ["round_win", "round_stalemate", "match_win", "first_blood"]:
                 notification_text = f"{event_type.replace('_', ' ').capitalize()}!"
                 self.display_notification(notification_text)
-
-            # ... (Add more elif blocks for other specific event types as needed)
 
             self.debug_callback(f"OBS effect for {event_type} triggered successfully")
             print(f"OBS effect for {event_type} triggered successfully!")
@@ -193,7 +191,7 @@ class TF2LogHandler(PatternMatchingEventHandler):
     def update_killstreak_display(self, killstreak):
         # Now implemented to update a text source in OBS
         self.obs_client.send_request("SetTextGDIPlusProperties", {
-            "source": "KillstreakText",  # Replace with your actual text source name
+            "source": "KillstreakText", # Replace with your actual text source name
             "text": f"Killstreak: {killstreak}"
         })
 
@@ -203,10 +201,10 @@ class TF2LogHandler(PatternMatchingEventHandler):
             "text": text
         })
 
-        # Briefly show the notification overlay
-        self.obs_client.set_scene_item_enabled("NotificationScene", "NotificationOverlay", True)
+        # Briefly show the notification overlay (directly in the TF2 scene)
+        self.obs_client.set_scene_item_enabled("TF2 Scene", "NotificationOverlay", True)  # Assuming "TF2 Scene" is your main scene
         time.sleep(3)
-        self.obs_client.set_scene_item_enabled("NotificationScene", "NotificationOverlay", False)
+        self.obs_client.set_scene_item_enabled("TF2 Scene", "NotificationOverlay", False)
 
     def update_class_overlay(self, class_name):
         # Map class names to media source names (replace with your actual source names)
@@ -318,7 +316,7 @@ class TF2OBSPlugin:
         path = filedialog.askopenfilename(initialdir="/", title="Select TF2 console.log file",
                                             filetypes=(("Log files", "*.log"), ("All files", "*.*")))
         if path:
-            self.tf2_dir_entry.delete(0, tk.END)
+            selfself.tf2_dir_entry.delete(0, tk.END)
             self.tf2_dir_entry.insert(0, path)
 
     def open_steamid_finder(self):
@@ -409,14 +407,14 @@ def show_obs_info():
 To make the app work with OBS, please create the following:
 
 Scenes:
-- NotificationScene (for displaying notifications)
+- TF2 Scene (your main scene for TF2 gameplay)
 
 Sources:
 - KillOverlay (Media Source)
 - DeathOverlay (Media Source)
 - SuicideOverlay (Media Source)
 - CaptureOverlay (Media Source)
-- NotificationOverlay (Media Source)
+- NotificationOverlay (Media Source) 
 - KillstreakText (Text GDI+ Source)
 - NotificationText (Text GDI+ Source)
 - ScoutOverlay (Media Source)
@@ -470,13 +468,8 @@ Sources:
 Ensure that these names match exactly in OBS. The app will trigger these sources based on your in-game events.
 
 Important:
-Make sure to add -condebug to TF2 launch options to enable console output logging.
-To do this:
-1. Right-click on TF2 in your Steam library
-2. Select Properties
-3. In the General tab, find "Launch Options"
-4. Add -condebug to the launch options
-5. Click OK and restart TF2 if it's running
+- Place the NotificationOverlay and NotificationText sources directly in your TF2 Scene.
+- Make sure to add -condebug to TF2 launch options to enable console output logging
 """
     messagebox.showinfo("OBS and TF2 Setup Info", info_text)
 
