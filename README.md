@@ -20,26 +20,40 @@ This code creates a **TF2 OBS Plugin** that enhances your Team Fortress 2 stream
 * Please notify the obs team to update documentation and plugin recommendations that use these libraries 
 
 **Enhance your TF2 streams with dynamic overlays and scene transitions based on your in-game actions!** 
-Here's a list of OBS scenes and media sources you need to create based on the provided Python code:
 
-Scenes:
+**Here's a list of OBS scenes and media sources you need to create based on the provided Python code:**
 
-NotificationScene: This scene will be used specifically for displaying notifications during the game.
-Media Sources:
+* **Scenes:**
 
-KillOverlay: This media source will be triggered when you get a kill in TF2.
-DeathOverlay: This media source will be triggered when you die in TF2.
-SuicideOverlay: This media source will be triggered when you commit suicide in TF2.
-CaptureOverlay: This media source will be triggered when you capture a point in TF2.
-NotificationOverlay: This media source will be triggered to display general notifications.
-KillstreakText: This is a text source that will display your current killstreak.
-NotificationText: This is a text source that will display the content of notifications.
-ScoutOverlay, SoldierOverlay, PyroOverlay, DemomanOverlay, HeavyOverlay, EngineerOverlay, MedicOverlay, SniperOverlay, SpyOverlay, HaleOverlay: These media sources represent the class overlays that will be displayed based on the class you are currently playing.
-PickedIntel, DroppedIntel, HasIntel: These media sources will be triggered when you pick up, drop, or have the intelligence, respectively.
-BuiltSentry, BuiltDispenser, BuiltTeleEntrance, BuiltTeleExit: These media sources will be triggered when you build a sentry gun, dispenser, teleporter entrance, or teleporter exit, respectively.
-DestroyedSentry, DestroyedDispenser, DestroyedTeleEntrance, DestroyedTeleExit: These media sources will be triggered when you destroy a sentry gun, dispenser, teleporter entrance, or teleporter exit, respectively
-Domination, Dominated, Revenge, Stunned, Jarated, Milked, Extinguished, Spawned, MedicUber, MedicCharge, SpyDisguise, SpyBackstab, EngiTeleport, SniperHeadshot, PyroAirblast, DemoTrap, HeavyEating, CritBoosted, MiniCritBoosted, Damage, Healed, Assist, RoundWin, RoundStalemate, MatchWin, FirstBlood: These media sources correspond to various in-game events and will be triggered accordingly.
-Important Notes:
+* NotificationScene: This scene will be used specifically for displaying notifications during the game.
+
+* **Media Sources:**
+
+* KillOverlay: This media source will be triggered when you get a kill in TF2.
+
+* DeathOverlay: This media source will be triggered when you die in TF2.
+
+* SuicideOverlay: This media source will be triggered when you commit suicide in TF2.
+
+* CaptureOverlay: This media source will be triggered when you capture a point in TF2.
+
+* NotificationOverlay: This media source will be triggered to display general notifications.
+
+* KillstreakText: This is a text source that will display your current killstreak.
+
+* NotificationText: This is a text source that will display the content of notifications.
+
+* ScoutOverlay, SoldierOverlay, PyroOverlay, DemomanOverlay, HeavyOverlay, EngineerOverlay, MedicOverlay, SniperOverlay, SpyOverlay, HaleOverlay: These media sources represent the class overlays that will be displayed based on the class you are currently playing.
+
+* PickedIntel, DroppedIntel, HasIntel: These media sources will be triggered when you pick up, drop, or have the intelligence, respectively.
+
+* BuiltSentry, BuiltDispenser, BuiltTeleEntrance, BuiltTeleExit: These media sources will be triggered when you build a sentry gun, dispenser, teleporter entrance, or teleporter exit, respectively.
+
+* DestroyedSentry, DestroyedDispenser, DestroyedTeleEntrance, DestroyedTeleExit: These media sources will be triggered when you destroy a sentry gun, dispenser, teleporter entrance, or teleporter exit, respectively
+
+* Domination, Dominated, Revenge, Stunned, Jarated, Milked, Extinguished, Spawned, MedicUber, MedicCharge, SpyDisguise, SpyBackstab, EngiTeleport, SniperHeadshot, PyroAirblast, DemoTrap, HeavyEating, CritBoosted, MiniCritBoosted, Damage, Healed, Assist, RoundWin, RoundStalemate, MatchWin, FirstBlood: These media sources correspond to various in-game events and will be triggered accordingly.
+
+**Important Notes:**
 
 Make sure the names of these scenes and sources in OBS match exactly as they are listed here in the code.
 The types of media sources (e.g., image, video, text) are not explicitly specified in the code, so you will need to choose appropriate media types based on how you want to visually represent these events in your OBS stream.
