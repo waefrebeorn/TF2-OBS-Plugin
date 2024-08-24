@@ -58,3 +58,17 @@ This code creates a **TF2 OBS Plugin** that enhances your Team Fortress 2 stream
 Make sure the names of these scenes and sources in OBS match exactly as they are listed here in the code.
 The types of media sources (e.g., image, video, text) are not explicitly specified in the code, so you will need to choose appropriate media types based on how you want to visually represent these events in your OBS stream.
 Remember to add -condebug to your TF2 launch options to enable detailed console logging, which is necessary for this plugin to work correctly.
+
+The source changes triggered by the TF2 OBS Plugin are *independent of the scene you're currently in.* This means you can have a dedicated "TF2 Scene" with your ScoutOverlay, SoldierOverlay, and other class-specific sources, and the plugin will still be able to control their visibility as needed.
+
+How it works:
+
+* The plugin directly interacts with the OBS sources themselves, turning them on or off (making them visible or invisible) regardless of which scene is active at the moment. This allows you to have a flexible setup where you can design your scenes however you like, and the plugin will handle the dynamic overlay elements on top of that.
+
+Example:
+
+You're in your "TF2 Scene" which already has the ScoutOverlay visible because you're playing as Scout.
+You get a kill, triggering the "KillOverlay".
+The plugin will temporarily make the KillOverlay visible, even though it might be in a different scene.
+After a few seconds (as defined in the code), the KillOverlay will be hidden again, and your "TF2 Scene" with the ScoutOverlay will remain as it was.
+Key takeaway: You have full control over your scene design, and the plugin will seamlessly integrate the event-triggered overlays on top of it.
