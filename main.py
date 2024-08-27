@@ -39,13 +39,12 @@ class TF2LogHandler(PatternMatchingEventHandler):
         self.debug_callback(f"Starting to monitor from position: {self.last_position}")
         self.tf2_events = TF2Events(player_name) 
         self.use_images = use_images
-        # Define overlay_sources within the class
         self.overlay_sources = {
-            "kill": "Kill",
-            "death": "Death",
-            "suicide": "Suicide",
-            "capture": "Capture",
-            "notification": "Notif", 
+            "kill": "KillOverlay",
+            "death": "DeathOverlay",
+            "suicide": "SuicideOverlay",
+            "capture": "CaptureOverlay",
+            "notification": "NotificationOverlay", 
             "picked_up_intel": "PickedIntel",
             "dropped_intel": "DroppedIntel",
             "has_intel": "HasIntel",
@@ -83,7 +82,6 @@ class TF2LogHandler(PatternMatchingEventHandler):
             "round_stalemate": "RoundStalemate",
             "match_win": "MatchWin",
             "first_blood": "FirstBlood"
-            # Add even more mappings as needed!
         }
 
     def get_file_size(self, file_path):
@@ -128,6 +126,24 @@ class TF2LogHandler(PatternMatchingEventHandler):
                 event_type, weapon, killstreak = event_data
                 self.trigger_obs_effect(event_type, weapon, killstreak) 
 
+    def update_killstreak_display(self, killstreak):
+        self.debug_callback(f"Updating killstreak display to {killstreak}")
+        response = self.obs_client.set_input_settings("KillstreakText", {"text": f"Killstreak: {killstreak}"})
+        if response and 'd' in response and 'requestStatus' in response['d'] and response['d']['requestStatus']['result']:
+            self.debug_callback("Successfully updated killstreak display")
+        else:
+            self.debug_callback(f"Failed to update killstreak display. Response: {response}")               
+                
+    def get_current_scene_with_retry(self):
+        retry_count = 3
+        while retry_count > 0:
+            current_scene = self.obs_client.get_current_scene()
+            if current_scene:
+                return current_scene
+            retry_count -= 1
+            time.sleep(0.1)  # Short delay before retrying
+        return None
+        
     def trigger_obs_effect(self, event_type, weapon=None, killstreak=0):
         if self.stop_event.is_set():
             return
@@ -139,36 +155,62 @@ class TF2LogHandler(PatternMatchingEventHandler):
         self.debug_callback(f"Triggering OBS effect: {event_type}" + (f" with {weapon}" if weapon else ""))
     
         try:
-            # Scene Switching Logic (Always switch back to TF2Scene after any event)
-            time.sleep(1.5)  # Adjusted delay to 1.5 seconds
-            self.obs_client.set_current_scene("TF2Scene") 
+            # Get the current scene name
+            current_scene = self.get_current_scene_with_retry()
+            if not current_scene:
+                self.debug_callback("Failed to get current scene name after retries. Skipping effect.")
+                return
     
-            # Overlay/Source Control in TF2Scene (Handles both image and media sources)
-            if event_type in self.overlay_sources:
-                source_name = self.overlay_sources[event_type]
+            # Determine the source name based on event type 
+            source_name = self.overlay_sources.get(event_type)
+    
+            if source_name:
+                # Make sure the source is enabled before getting its ID
+                self.obs_client.set_scene_item_enabled(current_scene, source_name, True)
+    
                 if self.use_images:  # Use image sources
-                    request_type = "SetSceneItemRender"
-                    request_data = {
-                        "source": source_name,
-                        "render": True
-                    }
+                    # Now get the scene item ID
+                    scene_item_id = self.obs_client.get_scene_item_id_with_retry(current_scene, source_name)
+                    if scene_item_id is None:
+                        self.debug_callback(f"Error: Could not find scene item ID for source '{source_name}' in scene '{current_scene}'")
+                        return False
+    
+                    # Enable the source
+                    enable_result = self.obs_client.set_scene_item_enabled(current_scene, source_name, True)
+                    if enable_result:
+                        self.debug_callback(f"Successfully enabled source '{source_name}'")
+                    else:
+                        # Check if the error is due to the source already being enabled
+                        source_settings = self.obs_client.get_scene_item_properties(current_scene, scene_item_id)
+                        if source_settings.get("visible"):
+                            self.debug_callback(f"Source '{source_name}' is already enabled. Continuing...")
+                        else:
+                            self.debug_callback(f"Failed to enable source '{source_name}'. Skipping effect.")
+                            return
+    
+                    time.sleep(.3)
+    
+                    # Disable the source
+                    disable_result = self.obs_client.set_scene_item_enabled(current_scene, source_name, False)
+                    if disable_result:
+                        self.debug_callback(f"Successfully disabled source '{source_name}'")
+                    else:
+                        self.debug_callback(f"Failed to disable source '{source_name}'")
                 else:  # Use media sources
-                    request_type = "SetMediaSourceEnabled"
-                    request_data = {
-                        "sourceName": source_name,
-                        "sourceEnabled": True
-                    }
+                    self.obs_client.set_input_mute(source_name, False)
+                    time.sleep(.3)
+                    self.obs_client.set_input_mute(source_name, True)
     
-                self.obs_client.send_request(request_type, request_data)
-                time.sleep(1.5)
-    
-                # Hide/disable the source
-                request_data["render" if self.use_images else "sourceEnabled"] = False
-                self.obs_client.send_request(request_type, request_data)
+            else:
+                self.debug_callback(f"No overlay source found for event type: {event_type}")
     
             # Event-specific logic
             if event_type == "kill":
-                self.update_killstreak_display(killstreak) 
+                self.update_killstreak_display(killstreak)
+    
+            # Explicitly update OBS if killstreak is reset to 0
+            elif killstreak == 0: 
+                self.update_killstreak_display(0) 
     
             elif event_type.startswith("built_") or event_type.startswith("destroyed_"):
                 object_type = event_type.split("_")[1]
@@ -177,10 +219,10 @@ class TF2LogHandler(PatternMatchingEventHandler):
                 self.display_notification(notification_text)
     
             elif event_type in ["crit_boosted", "mini_crit_boosted", "damage", "healed", "assist"]:
-                target_player = weapon 
+                target_player = weapon
                 notification_text = f"{self.player_name} {event_type} {target_player}"
-                if killstreak: 
-                    notification_text += f" for {killstreak} damage" 
+                if killstreak:
+                    notification_text += f" for {killstreak} damage"
                 self.display_notification(notification_text)
     
             elif event_type in ["round_win", "round_stalemate", "match_win", "first_blood"]:
@@ -188,42 +230,27 @@ class TF2LogHandler(PatternMatchingEventHandler):
                 self.display_notification(notification_text)
     
             elif event_type == "spawned":
-                self.update_class_overlay(weapon) 
-    
-            # Handle other events that only trigger overlay/media source
-            elif event_type in ["picked_up_intel", "dropped_intel", "has_intel",
-                                "domination", "dominated", "revenge", "stunned", "jarated",
-                                "milked", "extinguished", "medic_uber", "medic_charge_deployed",
-                                "spy_disguise_complete", "spy_backstab", "engineer_teleported",
-                                "sniper_headshot", "pyro_airblast", "demoman_sticky_trap_triggered",
-                                "heavy_eating"]:
-                pass  # No additional action needed, overlay/media source is already triggered
+                self.update_class_overlay(weapon)
     
             self.debug_callback(f"OBS effect for {event_type} triggered successfully")
             print(f"OBS effect for {event_type} triggered successfully!")
     
         except Exception as e:
-            self.debug_callback(f"Failed to trigger OBS effect: {e}")
+            self.debug_callback(f"Failed to trigger OBS effect: {str(e)}")
             self.debug_callback(traceback.format_exc())
-            print(f"Failed to trigger OBS effect for {event_type}: {e}")
-            
-    def update_killstreak_display(self, killstreak):
-        # Now implemented to update a text source in OBS
-        self.obs_client.send_request("SetTextGDIPlusProperties", {
-            "source": "KillstreakText", # Replace with your actual text source name
-            "text": f"Killstreak: {killstreak}"
-        })
+            print(f"Failed to trigger OBS effect for {event_type}: {str(e)}")          
 
     def display_notification(self, text):
-        self.obs_client.send_request("SetTextGDIPlusProperties", {
-            "source": "NotificationText", 
-            "text": text
-        })
-
-        # Briefly show the notification overlay (directly in the TF2 scene)
-        self.obs_client.set_scene_item_enabled("TF2 Scene", "NotificationOverlay", True) # Assuming "TF2 Scene" is your main scene
-        time.sleep(3)
-        self.obs_client.set_scene_item_enabled("TF2 Scene", "NotificationOverlay", False)
+        self.obs_client.set_text_gdi_plus_properties("NotificationText", text)
+    
+        current_scene = self.obs_client.get_current_scene()
+        if current_scene:
+            # Briefly show the notification overlay
+            self.obs_client.set_scene_item_enabled(current_scene, "NotificationOverlay", True)
+            time.sleep(3)
+            self.obs_client.set_scene_item_enabled(current_scene, "NotificationOverlay", False)
+        else:
+            self.debug_callback("Failed to get current scene name. Skipping notification display.")
 
     def update_class_overlay(self, class_name):
         # Map class names to media source names (replace with your actual source names)
