@@ -70,31 +70,44 @@ class OBSWebSocket:
             }
         }
         self.ws.send(json.dumps(payload))
-        return json.loads(self.ws.recv())
+        response = self.ws.recv()  # Store the response
+        self.last_response = json.loads(response)  # Update the last_response attribute
+        return self.last_response
 
     def set_current_scene(self, scene_name):
         return self.send_request("SetCurrentProgramScene", {"sceneName": scene_name})
 
     def set_scene_item_enabled(self, scene_name, source_name, enabled):
-        scene_item_id = self.get_scene_item_id_with_retry(scene_name, source_name)
-        if scene_item_id is None:
-            print(f"Error: Could not find scene item ID for source '{source_name}' in scene '{scene_name}'")
+            scene_item_id = self.get_scene_item_id_with_retry(scene_name, source_name)
+            if scene_item_id is None:
+                print(f"Error: Could not find scene item ID for source '{source_name}' in scene '{scene_name}'")
+                return False
+    
+            response = self.send_request("SetSceneItemEnabled", {
+                "sceneName": scene_name,
+                "sceneItemId": scene_item_id,
+                "sceneItemEnabled": enabled
+            })
+    
+            if response and 'd' in response:
+                if 'requestStatus' in response['d']:
+                    # If 'requestStatus' is available, use its 'result' for success indication
+                    return response['d']['requestStatus']['result']
+                elif 'eventData' in response['d'] and 'sceneItemEnabled' in response['d']['eventData']:
+                    # If both 'eventData' and 'sceneItemEnabled' are present, use them
+                    return response['d']['eventData']['sceneItemEnabled'] == enabled
+                else:
+                    # Log a warning or error message with the full OBS response for debugging
+                    if hasattr(self, 'debug_callback'):
+                        self.debug_callback(f"Warning: 'sceneItemEnabled' or 'eventData' missing from SetSceneItemEnabled response. Full response: {self.last_response}")
+                    else:
+                        print(f"Warning: 'sceneItemEnabled' or 'eventData' missing from SetSceneItemEnabled response. Full response: {self.last_response}")
+    
+            # Return False if none of the above conditions are met (indicating an error)
             return False
-
-        response = self.send_request("SetSceneItemEnabled", {
-            "sceneName": scene_name,
-            "sceneItemId": scene_item_id,
-            "sceneItemEnabled": enabled
-        })
-        time.sleep(0.1)
-        if response and 'd' in response:
-            if 'requestStatus' in response['d']:
-                return response['d']['requestStatus']['result']
-            elif 'eventData' in response['d']:
-                return response['d']['eventData']['sceneItemEnabled'] == enabled
-
-        return False
-
+            
+            
+            
     def set_input_mute(self, input_name, muted):
         return self.send_request("SetInputMute", {
             "inputName": input_name,
@@ -109,25 +122,52 @@ class OBSWebSocket:
 
     def get_current_scene(self):
         max_retries = 25  # Maximum number of retries
-        retry_delay = 0.1  # Delay between retries in seconds
-
+        retry_delay = 0.2  # Delay between retries in seconds
+    
         for _ in range(max_retries):
             response = self.send_request("GetCurrentProgramScene")
-            if response and 'd' in response and 'responseData' in response['d']:
-                response_data = response['d']['responseData']
-                if 'currentProgramSceneName' in response_data:
-                    return response_data['currentProgramSceneName']
+    
+            if response and 'd' in response:
+                if 'responseData' in response['d'] and 'currentProgramSceneName' in response['d']['responseData']:
+                    # Standard case: 'currentProgramSceneName' is present
+                    return response['d']['responseData']['currentProgramSceneName']
+                elif 'requestType' in response['d'] and response['d']['requestType'] == 'GetSceneItemId':
+                    # Workaround: 'currentProgramSceneName' is missing, but we got a 'GetSceneItemId' response
+                    # Use GetCurrentScene to get the actual scene name
+                    scene_response = self.send_request("GetCurrentScene")
+                    if scene_response and 'd' in scene_response and 'name' in scene_response['d']:
+                        return scene_response['d']['name']
+                elif 'eventType' in response['d'] and response['d']['eventType'] == 'InputSettingsChanged':
+                    # Filter out 'InputSettingsChanged' events
+                    continue  # Retry if it's an InputSettingsChanged event
                 else:
-                    # Log a warning or error message indicating the missing 'currentProgramSceneName'
+                    # Log a warning or error message indicating an unexpected response structure
                     if hasattr(self, 'debug_callback'):
-                        self.debug_callback("Warning: 'currentProgramSceneName' missing from GetCurrentProgramScene response")
+                        self.debug_callback(f"Warning: Unexpected response from GetCurrentProgramScene. Full response: {self.last_response}")
                     else:
-                        print("Warning: 'currentProgramSceneName' missing from GetCurrentProgramScene response")
-
+                        print(f"Warning: Unexpected response from GetCurrentProgramScene. Full response: {self.last_response}")
+    
             time.sleep(retry_delay)  # Wait before retrying
-
+    
         # Return None or a default scene name if all retries fail
-        return None  # Or return a default scene name if appropriate for your use case
+        return None
+        
+    def get_current_scene_with_retry(self):
+        retry_count = 3
+        while retry_count > 0:
+            # Try GetCurrentProgramScene first
+            current_scene_data = self.get_current_program_scene()
+            if current_scene_data and 'currentProgramSceneName' in current_scene_data:
+                return current_scene_data['currentProgramSceneName']
+
+            # If that fails, try GetCurrentScene as a fallback
+            current_scene_data = self.get_current_scene()
+            if current_scene_data and 'name' in current_scene_data:
+                return current_scene_data['name']
+
+            retry_count -= 1
+            time.sleep(0.1)  # Short delay before retrying
+        return None
 
     def get_scene_item_id(self, scene_name, source_name):
         """Gets the scene item ID, first checking the cache, then sending a request if not found."""
@@ -168,7 +208,7 @@ class OBSWebSocket:
             scene_item_id = self.get_scene_item_id(scene_name, source_name)
             if scene_item_id is not None:
                 return scene_item_id
-            time.sleep(0.1)  # Short delay between retries within get_scene_item_id_with_retry
+                time.sleep(0.1)  # Short delay between retries within get_scene_item_id_with_retry
         return None
 
     def set_input_settings(self, input_name, settings):
@@ -181,3 +221,7 @@ class OBSWebSocket:
         if self.ws:
             self.ws.close()
         self.connected = False
+
+    def get_last_response(self):
+        """Returns the last response received from OBS."""
+        return self.last_response

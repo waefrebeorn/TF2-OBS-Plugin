@@ -68,7 +68,7 @@ class TF2Events:
                     return ("suicide", None, 0)
     
             # Capture & Defend Events 
-            capture_event = re.search(r'(.+) captured control point (.+)', line)
+            capture_event = re.search(r'(.+) captured (?:the |)([\w ]+)', line) 
             if capture_event:
                 player, point = capture_event.groups()
                 if player == self.player_name:
@@ -275,5 +275,14 @@ class TF2Events:
             return None            
             
         
+            # CTF Events 
+            ctf_event = re.search(r'(.+) (picked up|dropped|captured) the (.+) intelligence\.', line)
+            if ctf_event:
+                player, action, _ = ctf_event.groups()  # We don't need the team information in this case
+                if player == self.player_name:
+                    if action == 'captured':
+                        return ("capture", None, None)  # Trigger CaptureOverlay for any capture
+                    else:
+                        return (action + "_intel", None, None)
 
 

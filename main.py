@@ -168,8 +168,8 @@ class TF2LogHandler(PatternMatchingEventHandler):
                 # Make sure the source is enabled before getting its ID
                 self.obs_client.set_scene_item_enabled(current_scene, source_name, True)
     
-                if self.use_images:  # Use image sources
-                    # Now get the scene item ID
+                # Use image sources or media sources based on self.use_images
+                if self.use_images: 
                     scene_item_id = self.obs_client.get_scene_item_id_with_retry(current_scene, source_name)
                     if scene_item_id is None:
                         self.debug_callback(f"Error: Could not find scene item ID for source '{source_name}' in scene '{current_scene}'")
@@ -185,8 +185,9 @@ class TF2LogHandler(PatternMatchingEventHandler):
                         if source_settings.get("visible"):
                             self.debug_callback(f"Source '{source_name}' is already enabled. Continuing...")
                         else:
-                            self.debug_callback(f"Failed to enable source '{source_name}'. Skipping effect.")
-                            return
+                            # Print the full OBS response for debugging if enabling failed
+                            self.debug_callback(f"Failed to enable source '{source_name}'. OBS Response: {self.obs_client.get_last_response()}")
+                            return 
     
                     time.sleep(.3)
     
@@ -196,7 +197,7 @@ class TF2LogHandler(PatternMatchingEventHandler):
                         self.debug_callback(f"Successfully disabled source '{source_name}'")
                     else:
                         self.debug_callback(f"Failed to disable source '{source_name}'")
-                else:  # Use media sources
+                else: 
                     self.obs_client.set_input_mute(source_name, False)
                     time.sleep(.3)
                     self.obs_client.set_input_mute(source_name, True)
@@ -210,6 +211,7 @@ class TF2LogHandler(PatternMatchingEventHandler):
     
             # Explicitly update OBS if killstreak is reset to 0
             elif killstreak == 0: 
+                time.sleep(0.1) 
                 self.update_killstreak_display(0) 
     
             elif event_type.startswith("built_") or event_type.startswith("destroyed_"):
@@ -238,53 +240,59 @@ class TF2LogHandler(PatternMatchingEventHandler):
         except Exception as e:
             self.debug_callback(f"Failed to trigger OBS effect: {str(e)}")
             self.debug_callback(traceback.format_exc())
-            print(f"Failed to trigger OBS effect for {event_type}: {str(e)}")          
-
-    def display_notification(self, text):
-        self.obs_client.set_text_gdi_plus_properties("NotificationText", text)
+            print(f"Failed to trigger OBS effect for {event_type}: {str(e)}")
     
-        current_scene = self.obs_client.get_current_scene()
-        if current_scene:
-            # Briefly show the notification overlay
-            self.obs_client.set_scene_item_enabled(current_scene, "NotificationOverlay", True)
-            time.sleep(3)
-            self.obs_client.set_scene_item_enabled(current_scene, "NotificationOverlay", False)
-        else:
-            self.debug_callback("Failed to get current scene name. Skipping notification display.")
-
-    def update_class_overlay(self, class_name):
-        # Map class names to media source names (replace with your actual source names)
-        class_media_sources = {
-            "Scout": "ScoutOverlay",
-            "Soldier": "SoldierOverlay",
-            "Pyro": "PyroOverlay",
-            "Demoman": "DemomanOverlay",
-            "Heavy": "HeavyOverlay",
-            "Engineer": "EngineerOverlay",
-            "Medic": "MedicOverlay",
-            "Sniper": "SniperOverlay",
-            "Spy": "SpyOverlay",
-            "Saxton Hale": "HaleOverlay"
-        }
-
-        if class_name in class_media_sources:
-            media_source_name = class_media_sources[class_name]
-
-            # Hide all class overlays first
-            for source_name in class_media_sources.values():
+    
+    
+    
+        def display_notification(self, text):
+            self.obs_client.set_text_gdi_plus_properties("NotificationText", text)
+        
+            current_scene = self.obs_client.get_current_scene()
+            if current_scene:
+                # Briefly show the notification overlay
+                self.obs_client.set_scene_item_enabled(current_scene, "NotificationOverlay", True)
+                time.sleep(3)
+                self.obs_client.set_scene_item_enabled(current_scene, "NotificationOverlay", False)
+            else:
+                self.debug_callback("Failed to get current scene name. Skipping notification display.")
+    
+        def update_class_overlay(self, class_name):
+            # Map class names to media source names (replace with your actual source names)
+            class_media_sources = {
+                "Scout": "ScoutOverlay",
+                "Soldier": "SoldierOverlay",
+                "Pyro": "PyroOverlay",
+                "Demoman": "DemomanOverlay",
+                "Heavy": "HeavyOverlay",
+                "Engineer": "EngineerOverlay",
+                "Medic": "MedicOverlay",
+                "Sniper": "SniperOverlay",
+                "Spy": "SpyOverlay",
+                "Saxton Hale": "HaleOverlay"
+            }
+    
+            if class_name in class_media_sources:
+                media_source_name = class_media_sources[class_name]
+    
+                # Hide all class overlays first
+                for source_name in class_media_sources.values():
+                    self.obs_client.send_request("SetMediaSourceEnabled", {
+                        "sourceName": source_name,
+                        "sourceEnabled": False
+                    })
+    
+                # Show the overlay for the current class
                 self.obs_client.send_request("SetMediaSourceEnabled", {
-                    "sourceName": source_name,
-                    "sourceEnabled": False
+                    "sourceName": media_source_name,
+                    "sourceEnabled": True
                 })
+    
+            else:
+                self.debug_callback(f"Unknown class: {class_name}")
+    
 
-            # Show the overlay for the current class
-            self.obs_client.send_request("SetMediaSourceEnabled", {
-                "sourceName": media_source_name,
-                "sourceEnabled": True
-            })
 
-        else:
-            self.debug_callback(f"Unknown class: {class_name}")
             
 class TF2OBSPlugin:
     def __init__(self, root):
@@ -343,7 +351,7 @@ class TF2OBSPlugin:
         tk.Button(self.root, text="Show Setup Info", command=show_obs_info).grid(row=7, column=0, columnspan=3, padx=10, pady=10)
     
         # -condebug reminder
-        condebug_text = "Remember to add -condebug to TF2 launch options!"
+        condebug_text = "Remember to add -condebug -console -log_verbose_enable 1 to TF2 launch options!"
         tk.Label(self.root, text=condebug_text, fg="red", font=("Arial", 12, "bold")).grid(row=8, column=0, columnspan=3, padx=10, pady=10)
     
         # Checkbox for image/media source selection
@@ -522,7 +530,7 @@ Ensure that these names match exactly in OBS. The app will trigger these sources
 
 Important:
 - Place the NotificationOverlay and NotificationText sources directly in your TF2 Scene.
-- Make sure to add -condebug to TF2 launch options to enable console output logging
+- Make sure to add -condebug -console -log_verbose_enable 1 to TF2 launch options to enable console output logging
 """
     messagebox.showinfo("OBS and TF2 Setup Info", info_text)
 
