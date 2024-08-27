@@ -6,7 +6,21 @@ class TF2Events:
         self.killstreak = 0
 
     def process_log_line(self, line, debug_callback):
+            debug_callback(f"Processing line for player: {self.player_name}")
             # Kill, Death, and Suicide Events (case-insensitive regex)
+
+            suicide_event = re.search(r'(\w+) suicided\.', line)
+            if suicide_event:
+                player = suicide_event.group(1)
+                debug_callback(f"Suicide event detected: {player} suicided")
+                if player == self.player_name:
+                    self.killstreak = 0
+                    debug_callback(f"Player {self.player_name} suicided. Killstreak reset.")
+                    return ("suicide", None, 0)
+                else:
+                    debug_callback(f"Suicide event not for current player. Ignoring.")
+                    return None
+                
             kill_patterns = [
                 r'(\w+) killed (\w+) with (\w+)(\. \(crit\))?',
                 r'(\w+) backstabbed (\w+)',
@@ -29,6 +43,7 @@ class TF2Events:
                 kill_event = re.search(pattern, line, re.IGNORECASE)
                 if kill_event:
                     groups = kill_event.groups()
+                    debug_callback(f"Kill event matched: {groups}")
     
                     # Extract killer, victim, and optional crit info
                     if len(groups) == 4:
@@ -57,15 +72,9 @@ class TF2Events:
                         self.killstreak = 0
                         debug_callback(f"Player {self.player_name} was killed. Killstreak reset.")
                         return ("death", weapon, 0)
+            debug_callback("No matching event found for this line.")
+            return None            
     
-            suicide_event = re.search(r'(\w+) suicided\.', line)
-            if suicide_event:
-                player = suicide_event.group(1)
-                debug_callback(f"Suicide event detected: {player} suicided")
-                if player == self.player_name:
-                    self.killstreak = 0
-                    debug_callback(f"Player {self.player_name} suicided. Killstreak reset.")
-                    return ("suicide", None, 0)
     
             # Capture & Defend Events 
             capture_event = re.search(r'(.+) captured (?:the |)([\w ]+)', line) 
@@ -285,4 +294,6 @@ class TF2Events:
                     else:
                         return (action + "_intel", None, None)
 
+            debug_callback("No matching event found for this line.")
+            return None
 

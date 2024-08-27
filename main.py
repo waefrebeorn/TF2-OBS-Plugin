@@ -10,6 +10,7 @@ import threading
 import traceback
 import queue
 import logging
+import atexit
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -39,6 +40,7 @@ class TF2LogHandler(PatternMatchingEventHandler):
         self.debug_callback(f"Starting to monitor from position: {self.last_position}")
         self.tf2_events = TF2Events(player_name) 
         self.use_images = use_images
+        self.obs_effect_queue = queue.Queue()        
         self.overlay_sources = {
             "kill": "KillOverlay",
             "death": "DeathOverlay",
@@ -95,6 +97,19 @@ class TF2LogHandler(PatternMatchingEventHandler):
         # We don't need to do anything here, as check_file is called periodically
         pass
 
+    def on_event(self, event):
+        if isinstance(event, FileModifiedEvent):
+            self.check_file()
+        else:
+            # Handle other events, like scene changes from OBS
+            try:
+                event_data = json.loads(event.src_path)  # Assuming you're receiving OBS events as JSON strings
+                if 'update-type' in event_data and event_data['update-type'] == 'SwitchScenes':
+                    self.debug_callback("Scene switched in OBS. Clearing scene item ID cache.")
+                    self.obs_client.clear_scene_item_id_cache()
+            except json.JSONDecodeError:
+                self.debug_callback(f"Error decoding event data: {event.src_path}")
+                
     def check_file(self):
         if self.stop_event.is_set():
             return
@@ -106,11 +121,14 @@ class TF2LogHandler(PatternMatchingEventHandler):
                     log_file.seek(self.last_position)
                     new_lines = log_file.readlines()
                     self.last_position = log_file.tell()
+                    self.debug_callback(f"Read {len(new_lines)} new lines from log file.")
                     self.process_new_lines(new_lines)
             elif current_size < self.last_position:
                 self.debug_callback("Log file size decreased. File might have been truncated or replaced.")
                 self.last_position = 0
-                self.check_file() # Recheck the file from the beginning
+                self.check_file()  # Recheck the file from the beginning
+            else:
+                self.debug_callback("No new content in log file.")
         except Exception as e:
             self.debug_callback(f"Error reading log file: {e}")
             self.debug_callback(traceback.format_exc())
@@ -119,12 +137,15 @@ class TF2LogHandler(PatternMatchingEventHandler):
         for line in lines:
             if self.stop_event.is_set():
                 return
-            self.debug_callback(f"New log line: {line.strip()}")
+            self.debug_callback(f"Processing log line: {line.strip()}")
 
             event_data = self.tf2_events.process_log_line(line, self.debug_callback)
             if event_data:
                 event_type, weapon, killstreak = event_data
-                self.trigger_obs_effect(event_type, weapon, killstreak) 
+                self.debug_callback(f"Event detected: {event_type}, Weapon: {weapon}, Killstreak: {killstreak}")
+                self.obs_effect_queue.put((event_type, weapon, killstreak))
+            else:
+                self.debug_callback("No event detected for this line.")
 
     def update_killstreak_display(self, killstreak):
         self.debug_callback(f"Updating killstreak display to {killstreak}")
@@ -155,144 +176,154 @@ class TF2LogHandler(PatternMatchingEventHandler):
         self.debug_callback(f"Triggering OBS effect: {event_type}" + (f" with {weapon}" if weapon else ""))
     
         try:
-            # Get the current scene name
             current_scene = self.get_current_scene_with_retry()
             if not current_scene:
                 self.debug_callback("Failed to get current scene name after retries. Skipping effect.")
                 return
     
-            # Determine the source name based on event type 
             source_name = self.overlay_sources.get(event_type)
-    
             if source_name:
-                # Make sure the source is enabled before getting its ID
-                self.obs_client.set_scene_item_enabled(current_scene, source_name, True)
-    
-                # Use image sources or media sources based on self.use_images
-                if self.use_images: 
-                    scene_item_id = self.obs_client.get_scene_item_id_with_retry(current_scene, source_name)
-                    if scene_item_id is None:
-                        self.debug_callback(f"Error: Could not find scene item ID for source '{source_name}' in scene '{current_scene}'")
-                        return False
-    
-                    # Enable the source
-                    enable_result = self.obs_client.set_scene_item_enabled(current_scene, source_name, True)
-                    if enable_result:
-                        self.debug_callback(f"Successfully enabled source '{source_name}'")
-                    else:
-                        # Check if the error is due to the source already being enabled
-                        source_settings = self.obs_client.get_scene_item_properties(current_scene, scene_item_id)
-                        if source_settings.get("visible"):
-                            self.debug_callback(f"Source '{source_name}' is already enabled. Continuing...")
-                        else:
-                            # Print the full OBS response for debugging if enabling failed
-                            self.debug_callback(f"Failed to enable source '{source_name}'. OBS Response: {self.obs_client.get_last_response()}")
-                            return 
-    
-                    time.sleep(.3)
-    
-                    # Disable the source
-                    disable_result = self.obs_client.set_scene_item_enabled(current_scene, source_name, False)
-                    if disable_result:
-                        self.debug_callback(f"Successfully disabled source '{source_name}'")
-                    else:
-                        self.debug_callback(f"Failed to disable source '{source_name}'")
-                else: 
-                    self.obs_client.set_input_mute(source_name, False)
-                    time.sleep(.3)
-                    self.obs_client.set_input_mute(source_name, True)
-    
+                toggle_result = self.toggle_source_visibility(current_scene, source_name)
+                if not toggle_result:
+                    self.debug_callback(f"Failed to toggle visibility for source '{source_name}'. Continuing with other effects.")
             else:
-                self.debug_callback(f"No overlay source found for event type: {event_type}")
+                self.debug_callback(f"No overlay source found for event type: {event_type}. Continuing with other effects.")
     
             # Event-specific logic
             if event_type == "kill":
                 self.update_killstreak_display(killstreak)
-    
-            # Explicitly update OBS if killstreak is reset to 0
-            elif killstreak == 0: 
-                time.sleep(0.1) 
-                self.update_killstreak_display(0) 
-    
+            elif event_type in ["death", "suicide"]:
+                self.update_killstreak_display(0)
             elif event_type.startswith("built_") or event_type.startswith("destroyed_"):
-                object_type = event_type.split("_")[1]
-                action = "built" if event_type.startswith("built_") else "destroyed"
-                notification_text = f"{self.player_name} {action} a {object_type}"
-                self.display_notification(notification_text)
-    
+                self.handle_build_destroy_event(event_type)
             elif event_type in ["crit_boosted", "mini_crit_boosted", "damage", "healed", "assist"]:
-                target_player = weapon
-                notification_text = f"{self.player_name} {event_type} {target_player}"
-                if killstreak:
-                    notification_text += f" for {killstreak} damage"
-                self.display_notification(notification_text)
-    
+                self.handle_stat_event(event_type, weapon, killstreak)
             elif event_type in ["round_win", "round_stalemate", "match_win", "first_blood"]:
-                notification_text = f"{event_type.replace('_', ' ').capitalize()}!"
-                self.display_notification(notification_text)
-    
+                self.handle_game_event(event_type)
             elif event_type == "spawned":
                 self.update_class_overlay(weapon)
     
             self.debug_callback(f"OBS effect for {event_type} triggered successfully")
-            print(f"OBS effect for {event_type} triggered successfully!")
     
         except Exception as e:
             self.debug_callback(f"Failed to trigger OBS effect: {str(e)}")
             self.debug_callback(traceback.format_exc())
-            print(f"Failed to trigger OBS effect for {event_type}: {str(e)}")
-    
-    
-    
-    
-        def display_notification(self, text):
-            self.obs_client.set_text_gdi_plus_properties("NotificationText", text)
+         
+    def toggle_source_visibility(self, scene, source_name):
+        self.debug_callback(f"Attempting to toggle visibility for source '{source_name}' in scene '{scene}'")
         
+        if scene is None or source_name is None:
+            self.debug_callback(f"Error: Invalid scene ({scene}) or source name ({source_name})")
+            return False
+    
+        try:
+            if self.use_images:
+                # Enable the source
+                enable_result = self.obs_client.set_scene_item_enabled(scene, source_name, True)
+                if enable_result is None:
+                    self.debug_callback(f"Failed to enable source '{source_name}'.")
+                    return False
+    
+                time.sleep(0.3)
+    
+                # Disable the source
+                disable_result = self.obs_client.set_scene_item_enabled(scene, source_name, False)
+                if disable_result is None:
+                    self.debug_callback(f"Failed to disable source '{source_name}'.")
+                    return False
+            else:
+                # Toggle mute state for media sources
+                mute_result = self.obs_client.set_input_mute(source_name, False)
+                if mute_result is None:
+                    self.debug_callback(f"Failed to unmute source '{source_name}'")
+                    return False
+                
+                time.sleep(0.3)
+                
+                unmute_result = self.obs_client.set_input_mute(source_name, True)
+                if unmute_result is None:
+                    self.debug_callback(f"Failed to mute source '{source_name}'")
+                    return False
+    
+            self.debug_callback(f"Successfully toggled visibility for source '{source_name}'")
+            return True
+        except Exception as e:
+            self.debug_callback(f"Error toggling source visibility: {str(e)}")
+            self.debug_callback(traceback.format_exc())
+            return False
+
+ 
+    def update_killstreak_display(self, killstreak):
+        try:
+            self.debug_callback(f"Updating killstreak display to {killstreak}")
+            response = self.obs_client.set_input_settings("KillstreakText", {"text": f"Killstreak: {killstreak}"})
+            if not (response and 'd' in response and 'requestStatus' in response['d'] and response['d']['requestStatus']['result']):
+                self.debug_callback(f"Failed to update killstreak display. Response: {response}")
+        except Exception as e:
+            self.debug_callback(f"Error updating killstreak display: {str(e)}")
+    
+    def display_notification(self, text):
+        try:
+            self.obs_client.set_text_gdi_plus_properties("NotificationText", text)
+            
             current_scene = self.obs_client.get_current_scene()
             if current_scene:
-                # Briefly show the notification overlay
                 self.obs_client.set_scene_item_enabled(current_scene, "NotificationOverlay", True)
                 time.sleep(3)
                 self.obs_client.set_scene_item_enabled(current_scene, "NotificationOverlay", False)
             else:
                 self.debug_callback("Failed to get current scene name. Skipping notification display.")
+        except Exception as e:
+            self.debug_callback(f"Error displaying notification: {str(e)}")
     
-        def update_class_overlay(self, class_name):
-            # Map class names to media source names (replace with your actual source names)
+    def update_class_overlay(self, class_name):
+        try:
             class_media_sources = {
-                "Scout": "ScoutOverlay",
-                "Soldier": "SoldierOverlay",
-                "Pyro": "PyroOverlay",
-                "Demoman": "DemomanOverlay",
-                "Heavy": "HeavyOverlay",
-                "Engineer": "EngineerOverlay",
-                "Medic": "MedicOverlay",
-                "Sniper": "SniperOverlay",
-                "Spy": "SpyOverlay",
+                "Scout": "ScoutOverlay", "Soldier": "SoldierOverlay", "Pyro": "PyroOverlay",
+                "Demoman": "DemomanOverlay", "Heavy": "HeavyOverlay", "Engineer": "EngineerOverlay",
+                "Medic": "MedicOverlay", "Sniper": "SniperOverlay", "Spy": "SpyOverlay",
                 "Saxton Hale": "HaleOverlay"
             }
     
             if class_name in class_media_sources:
                 media_source_name = class_media_sources[class_name]
     
-                # Hide all class overlays first
                 for source_name in class_media_sources.values():
                     self.obs_client.send_request("SetMediaSourceEnabled", {
                         "sourceName": source_name,
-                        "sourceEnabled": False
+                        "sourceEnabled": source_name == media_source_name
                     })
-    
-                # Show the overlay for the current class
-                self.obs_client.send_request("SetMediaSourceEnabled", {
-                    "sourceName": media_source_name,
-                    "sourceEnabled": True
-                })
-    
             else:
                 self.debug_callback(f"Unknown class: {class_name}")
+        except Exception as e:
+            self.debug_callback(f"Error updating class overlay: {str(e)}")
     
-
-
+    def handle_build_destroy_event(self, event_type):
+        try:
+            object_type = event_type.split("_")[1]
+            action = "built" if event_type.startswith("built_") else "destroyed"
+            notification_text = f"{self.player_name} {action} a {object_type}"
+            self.display_notification(notification_text)
+        except Exception as e:
+            self.debug_callback(f"Error handling build/destroy event: {str(e)}")
+    
+    def handle_stat_event(self, event_type, target_player, killstreak):
+        try:
+            notification_text = f"{self.player_name} {event_type} {target_player}"
+            if killstreak:
+                notification_text += f" for {killstreak} damage"
+            self.display_notification(notification_text)
+        except Exception as e:
+            self.debug_callback(f"Error handling stat event: {str(e)}")
+    
+    def handle_game_event(self, event_type):
+        try:
+            notification_text = f"{event_type.replace('_', ' ').capitalize()}!"
+            self.display_notification(notification_text)
+        except Exception as e:
+            self.debug_callback(f"Error handling game event: {str(e)}")  
+    
+    
             
 class TF2OBSPlugin:
     def __init__(self, root):
@@ -305,8 +336,14 @@ class TF2OBSPlugin:
 
         self.create_widgets()
         self.debug_queue = queue.Queue()
+        self.root.after(100, self.process_debug_queue)
+        self.last_debug_time = 0
         self.use_images = False  # Default value
-
+        self.event_handler = None
+        self.obs_effect_thread = None
+        # Register the cleanup method to be called on exit
+        atexit.register(self.cleanup)
+    
     def create_widgets(self):
         # TF2 log file selection
         tk.Label(self.root, text="Select TF2 console.log File:").grid(row=0, column=0, padx=10, pady=10)
@@ -386,16 +423,31 @@ class TF2OBSPlugin:
         host = self.obs_host_entry.get()
         port = int(self.obs_port_entry.get())
         password = self.obs_password_entry.get()
-
+    
+        self.debug_callback(f"Attempting to connect to OBS at {host}:{port}")
         try:
-            self.obs_client = OBSWebSocket(host, port, password)
+            self.obs_client = OBSWebSocket(host, port, password, debug_callback=self.debug_callback)
             self.obs_client.connect()
             self.obs_connected = True
             self.debug_callback("Connected to OBS successfully!")
         except Exception as e:
-            self.debug_callback(f"Failed to connect to OBS: {e}")
+            self.debug_callback(f"Failed to connect to OBS: {str(e)}")
             self.debug_callback(traceback.format_exc())
-
+            self.obs_client = None
+            self.obs_connected = False
+    
+        if self.obs_connected:
+            self.debug_callback("Testing connection with GetSceneList request")
+            test_response = self.obs_client.send_request("GetSceneList")
+            if test_response and 'd' in test_response and 'responseData' in test_response['d']:
+                self.debug_callback("Successfully retrieved scene list from OBS.")
+                self.debug_callback(f"Scene list: {json.dumps(test_response['d']['responseData'], indent=2)}")
+            else:
+                self.debug_callback("Failed to retrieve scene list from OBS. Connection may be unstable.")
+                self.debug_callback(f"Response received: {test_response}")
+        else:
+            self.debug_callback("Not attempting to retrieve scene list due to failed connection")
+        
     def start_script(self):
         if not self.obs_client or not self.obs_client.connected:
             self.debug_callback("Error: Please connect to OBS first.")
@@ -412,17 +464,18 @@ class TF2OBSPlugin:
         self.use_images = self.use_images_var.get() 
         self.stop_event.clear()
         self.debug_callback("Starting monitoring...")
-        self.monitoring_thread = threading.Thread(target=self.run_monitoring,
-                                                    args=(tf2_path, player_name))
+        self.event_handler = TF2LogHandler(self.obs_client, tf2_path, player_name, self.debug_callback, self.stop_event, self.use_images)
+        self.monitoring_thread = threading.Thread(target=self.run_monitoring)
         self.monitoring_thread.start()
+        self.obs_effect_thread = threading.Thread(target=self.process_obs_effects)
+        self.obs_effect_thread.start()
         self.start_button.config(state=tk.DISABLED)
         self.stop_button.config(state=tk.NORMAL)
-        self.debug_callback("Monitoring thread started successfully!")
+        self.debug_callback("Monitoring and OBS effect threads started successfully!")
 
-    def run_monitoring(self, tf2_path, player_name):
-        event_handler = TF2LogHandler(self.obs_client, tf2_path, player_name, self.debug_callback, self.stop_event, self.use_images)
+    def run_monitoring(self):
         observer = Observer()
-        observer.schedule(event_handler, path=os.path.dirname(tf2_path), recursive=False)
+        observer.schedule(self.event_handler, path=os.path.dirname(self.event_handler.log_file_path), recursive=False)
 
         self.debug_callback("Starting log file watcher...")
         observer.start()
@@ -430,8 +483,8 @@ class TF2OBSPlugin:
 
         try:
             while not self.stop_event.is_set():
-                event_handler.check_file()
-                time.sleep(1) # Check every second
+                self.event_handler.check_file()
+                time.sleep(1)  # Check every second
         except Exception as e:
             self.debug_callback(f"Error in monitoring thread: {e}")
             self.debug_callback(traceback.format_exc())
@@ -441,6 +494,22 @@ class TF2OBSPlugin:
             observer.join()
             self.debug_callback("Log file watcher stopped.")
 
+        self.debug_callback("Monitoring thread ended.")
+
+    def process_obs_effects(self):
+        while not self.stop_event.is_set():
+            try:
+                effect = self.event_handler.obs_effect_queue.get(timeout=1)
+                self.event_handler.trigger_obs_effect(*effect)
+                self.event_handler.obs_effect_queue.task_done()
+            except queue.Empty:
+                continue
+            except Exception as e:
+                self.debug_callback(f"Error processing OBS effect: {str(e)}")
+                self.debug_callback(traceback.format_exc())
+
+        self.debug_callback("OBS effect processing thread ended.")
+        
     def stop_script(self):
         if self.monitoring_thread and self.monitoring_thread.is_alive():
             self.debug_callback("Stopping monitoring...")
@@ -450,19 +519,46 @@ class TF2OBSPlugin:
                 self.debug_callback("Warning: Monitoring thread did not stop gracefully.")
             else:
                 self.debug_callback("Monitoring stopped successfully.")
+        if self.obs_effect_thread and self.obs_effect_thread.is_alive():
+            self.obs_effect_thread.join(timeout=5)
+            if self.obs_effect_thread.is_alive():
+                self.debug_callback("Warning: OBS effect thread did not stop gracefully.")
+            else:
+                self.debug_callback("OBS effect thread stopped successfully.")
         self.start_button.config(state=tk.NORMAL)
         self.stop_button.config(state=tk.DISABLED)
-
+        
     def debug_callback(self, message):
         self.debug_queue.put(message)
 
     def process_debug_queue(self):
-        while not self.debug_queue.empty():
-            message = self.debug_queue.get_nowait()
-            self.debug_output.insert(tk.END, f"{message}\n")
-            self.debug_output.see(tk.END)
-            print(message)
+        try:
+            while True:
+                message = self.debug_queue.get_nowait()
+                self.debug_output.insert(tk.END, f"{message}\n")
+                self.debug_output.see(tk.END)
+                print(message)
+        except queue.Empty:
+            pass
+        finally:
+            self.root.after(100, self.process_debug_queue) 
 
+    def cleanup(self):
+        """Clean up resources when the application exits."""
+        self.debug_callback("Cleaning up resources...")
+        if self.obs_client and self.obs_client.connected:
+            self.obs_client.close()
+            self.debug_callback("OBS client connection closed.")
+        self.stop_script()
+        self.debug_callback("Cleanup complete.")
+
+    def on_closing(self):
+        """Handle the window close event."""
+        if messagebox.askokcancel("Quit", "Do you want to quit?"):
+            self.cleanup()
+            self.root.destroy()
+            
+            
 def show_obs_info():
     info_text = """
 To make the app work with OBS, please create the following:
@@ -537,6 +633,7 @@ Important:
 def main():
     root = tk.Tk()
     app = TF2OBSPlugin(root)
+    root.protocol("WM_DELETE_WINDOW", app.on_closing)  # Handle window close event
 
     try:
         while True:
@@ -546,8 +643,7 @@ def main():
     except KeyboardInterrupt:
         print("Application terminated by user.")
     finally:
-        if app.obs_client:
-            app.obs_client.close()
+        app.cleanup()
 
 if __name__ == "__main__":
     main()
