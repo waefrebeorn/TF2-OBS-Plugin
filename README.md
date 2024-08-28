@@ -1,6 +1,4 @@
-Here's an improved and updated README for the TF2-OBS-Plugin:
 
-```markdown
 # TF2-OBS-Plugin
 
 Enhance your Team Fortress 2 streaming experience with dynamic overlays and scene transitions based on in-game actions!
@@ -97,4 +95,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 - Thanks to the OBS Project for creating OBS Studio and the WebSocket plugin.
 - Credit to mud_punk for their insights on OBS WebSocket connections in Python.
-```
+
