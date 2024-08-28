@@ -1,0 +1,325 @@
+For FCVAR_REPLICATED, ConVar must be defined in client and game .dlls (sv_use_steam_voice)
+[TF Workshop] Got 0 subscribed maps, 0 new
+ProtoDefs post data loaded.
+ProtoDefs loaded. 40.23 MB used
+maxplayers set to 24
+Steam config directory: C:\Program Files (x86)\Steam\steamapps\common\Team Fortress 2\platform\config
+CClientSteamContext logged on = 1
+Convar tf_impactwatertimeenable has conflicting FCVAR_CHEAT flags (child: FCVAR_CHEAT, parent: no FCVAR_CHEAT, parent wins)
+Parent cvar in server.dll not allowed (tf_mvm_max_connected_players)
+Convar cl_particle_retire_cost has conflicting FCVAR_CHEAT flags (child: FCVAR_CHEAT, parent: no FCVAR_CHEAT, parent wins)
+Convar r_drawropes has conflicting FCVAR_CHEAT flags (child: FCVAR_CHEAT, parent: no FCVAR_CHEAT, parent wins)
+Cleaning up unneeded replay block data...
+Replay cleanup done.
+Loading default settings for high sensitivity
+Connection to game coordinator established.
+Current item schema is up-to-date with version 259F69EF.
+CTFGCClientSystem::PostInitGC
+CTFGCClientSystem - adding listener
+'overrides/pre_comfig.cfg' not present; not executing.
+Lobby-based matchmaking mode not active
+Can't alias "kill" as it's already a ConCommand or ConVar and not an input command (+/-).
+Can't alias "explode" as it's already a ConCommand or ConVar and not an input command (+/-).
+Can't alias "commentary_finishnode" as it's already a ConCommand or ConVar and not an input command (+/-).
+Unknown command "r_shadowlod"
+Unknown command "cat_ipc_exec_all"
+Unknown command "cat_detach"
+Unknown command "block_game_overrides_once"
+'overrides/setup_hook.cfg' not present; not executing.
+Medium preset selected 
+'addons/disable-pyroland.cfg' not present; not executing.
+'addons/flat-mouse.cfg' not present; not executing.
+'addons/lowmem.cfg' not present; not executing.
+'addons/no-footsteps.cfg' not present; not executing.
+'addons/no-soundscapes.cfg' not present; not executing.
+'addons/no-tutorial.cfg' not present; not executing.
+'addons/null-canceling-movement.cfg' not present; not executing.
+'addons/transparent-viewmodels.cfg' not present; not executing.
+'overrides/modules.cfg' not present; not executing.
+Modules applied 
+ 
+---------------|||||-------------------- 
+----------||||||||||-------------------- 
+-------||||||||------------------------- 
+-----||||||-----||||||||---------------- 
+---|||||----||||||||||||||||------------ 
+--||||----|||||||------|||||||---------- 
+-||||---|||||--------------|||||-------- 
+-|||---||||------------------||||------- 
+|||---||||--------------------||||------ 
+|||---|||----------------------|||------ 
+|||---|||----------------------|||---||| 
+|||---||||--------------------||||---||| 
+||||---||||------------------||||---|||| 
+|||||---|||||--------------|||||---||||| 
+||||||---||||||||------|||||||----|||||| 
+||||||||----||||||||||||||||----|||||||| 
+|||--||||||-----||||||||-----||||||--||| 
+|||----||||||||----------||||||||----||| 
+|||-------||||||||||||||||||||-------||| 
+|||-----------||||||||||||-----------||| 
+  ********************************** 
+  mastercomfig 9.10.3 loaded 
+  May 6, 2024 
+  ################################################## 
+  This release took 50 hours to produce. 
+  If you like the work I do, consider supporting me! 
+  docs.comfig.app/latest/support_me 
+  I accept Ko-fi, Liberapay, and trade offers! 
+  Your continued support, gratitude and dedication 
+  are much appreciated. Thank you so much! 
+Can't alias "mat_antialias" as it's already a ConCommand or ConVar and not an input command (+/-).
+Creating fallback sound cache at: c:\program files (x86)\steam\steamapps\common\team fortress 2\tf\sound_workshop
+Can't use cheat cvar fog_start in multiplayer, unless the server has sv_cheats set to 1.
+Can't use cheat cvar fog_end in multiplayer, unless the server has sv_cheats set to 1.
+Can't use cheat cvar fog_startskybox in multiplayer, unless the server has sv_cheats set to 1.
+Can't use cheat cvar fog_endskybox in multiplayer, unless the server has sv_cheats set to 1.
+Can't use cheat cvar r_farz in multiplayer, unless the server has sv_cheats set to 1.
+Unknown command "setmaster"
+Network: IP 192.168.1.9, mode MP, dedicated No, ports 27015 SV / 27005 CL
+Using map cycle file 'cfg/mapcycle_default.txt'.  ('cfg\mapcycle.txt' was not found.)
+VSCRIPT: Started VScript virtual machine using script language 'Squirrel'
+Script not found (scripts/vscripts/mapspawn.nut) 
+Set motd from file 'cfg/motd_default.txt'.  ('cfg/motd.txt' was not found.)
+Set motd_text from file 'cfg/motd_text_default.txt'.  ('cfg/motd_text.txt' was not found.)
+SV_ActivateServer: setting tickrate to 66.7
+'overrides/listenserver.cfg' not present; not executing.
+'cp_altitude.cfg' not present; not executing.
+
+Team Fortress
+Map: cp_altitude
+Players: 1 / 24
+Build: 9115164
+Server Number: 1
+Attemped to precache unknown particle system "blood_impact_red"!
+The server is using sv_pure 0.  (Enforcing consistency for select files only)
+Cannot figure out which search path sound\physics\metal\metal_grenade_roll_loop1.wav came from. Not playing.
+Cannot figure out which search path sound\weapons\timer.wav came from. Not playing.
+Cannot figure out which search path sound\items\pyro_guitar_solo_with_verb.wav came from. Not playing.
+Cannot figure out which search path sound\player\sniper_taunt_hawk.wav came from. Not playing.
+Cannot figure out which search path sound\player\taunt_pyro_twirl.wav came from. Not playing.
+Cannot figure out which search path sound\player\taunt_yeti_standee_spy_swing1.wav came from. Not playing.
+Cannot figure out which search path sound\player\taunt_yeti_standee_spy_swing2.wav came from. Not playing.
+Cannot figure out which search path sound\player\cyoa_pda_dial1.wav came from. Not playing.
+Cannot figure out which search path sound\player\cyoa_pda_dial2.wav came from. Not playing.
+Cannot figure out which search path sound\player\cyoa_pda_dial3.wav came from. Not playing.
+Cannot figure out which search path sound\player\cyoa_pda_dial4.wav came from. Not playing.
+Cannot figure out which search path sound\player\cyoa_pda_dial5.wav came from. Not playing.
+Cannot figure out which search path sound\ui\quest_status_complete.wav came from. Not playing.
+Cannot figure out which search path sound\weapons\shotgun_cock.wav came from. Not playing.
+Cannot figure out which search path sound\weapons\airstrike_fail.wav came from. Not playing.
+Cannot figure out which search path sound\vo\halloween_eyeball\eyeball_biglaugh02.mp3 came from. Not playing.
+MP3 is completely missing, sound system will be upset to learn of this [ vo\halloween_eyeball\eyeball_biglaugh02.mp3 ]
+Requesting texture value from var "$basetexture" which is not a texture value (material: skybox/sky_hydro_01rt)
+Requesting texture value from var "$basetexture" which is not a texture value (material: skybox/sky_hydro_01bk)
+Requesting texture value from var "$basetexture" which is not a texture value (material: skybox/sky_hydro_01lf)
+Requesting texture value from var "$basetexture" which is not a texture value (material: skybox/sky_hydro_01ft)
+Requesting texture value from var "$basetexture" which is not a texture value (material: skybox/sky_hydro_01up)
+Requesting texture value from var "$basetexture" which is not a texture value (material: skybox/sky_hydro_01dn)
+Voice_Init: Using Steam voice optimal sample rate 24000
+Saving c:\program files (x86)\steam\steamapps\common\team fortress 2\tf\sound\sound.cache
+WaefreBeorn connected
+Compact freed 253952 bytes
+JOY_AXIS_X:  mapped to Turn (absolute)
+JOY_AXIS_Y:  mapped to Look (absolute)
+JOY_AXIS_Z:  unmapped
+JOY_AXIS_R:  mapped to Forward (absolute)
+JOY_AXIS_U:  mapped to Side (absolute)
+JOY_AXIS_V:  unmapped
+Advanced Joystick settings initialized
+--- Missing Vgui material vgui/..\vgui\maps\menu_thumb_Missing
+Redownloading all lightmaps
+'overrides/game_overrides.cfg' not present; not executing.
+'app/game_overrides.cfg' not present; not executing.
+'overrides/heavyweapons.cfg' not present; not executing.
+'app/heavyweapons.cfg' not present; not executing.
+WaefreBeorn suicided.
+Dropped WaefreBeorn from server (Server shutting down)
+Host_WriteConfiguration: Wrote cfg/config.cfg
+CTFGCClientSystem::ShutdownGC
+Unable to remove c:\program files (x86)\steam\steamapps\common\team fortress 2\tf\textwindow_temp.html!
+Shutdown function ShutdownMixerControls() not in list!!!
+--- Missing Vgui material vgui/logos/UI/spray
+'userconfig.cfg' not present; not executing.
+Changing resolutions from (1920, 1080) -> (640, 480)
+Unknown command "cl_thirdperson"
+Can't use cheat cvar cam_snapto in multiplayer, unless the server has sv_cheats set to 1.
+Can't use cheat cvar cam_ideallag in multiplayer, unless the server has sv_cheats set to 1.
+Can't use cheat cvar cam_idealdelta in multiplayer, unless the server has sv_cheats set to 1.
+Can't use cheat cvar cam_idealyaw in multiplayer, unless the server has sv_cheats set to 1.
+Can't use cheat cvar cam_idealpitch in multiplayer, unless the server has sv_cheats set to 1.
+Can't use cheat cvar cam_idealdist in multiplayer, unless the server has sv_cheats set to 1.
+Can't use cheat cvar cam_idealdistright in multiplayer, unless the server has sv_cheats set to 1.
+Can't use cheat cvar cam_idealdistup in multiplayer, unless the server has sv_cheats set to 1.
+Can't use cheat cvar cam_collision in multiplayer, unless the server has sv_cheats set to 1.
+Can't use cheat cvar c_maxpitch in multiplayer, unless the server has sv_cheats set to 1.
+Can't use cheat cvar c_minpitch in multiplayer, unless the server has sv_cheats set to 1.
+Can't use cheat cvar c_maxyaw in multiplayer, unless the server has sv_cheats set to 1.
+Can't use cheat cvar c_minyaw in multiplayer, unless the server has sv_cheats set to 1.
+Can't use cheat cvar c_maxdistance in multiplayer, unless the server has sv_cheats set to 1.
+Can't use cheat cvar c_mindistance in multiplayer, unless the server has sv_cheats set to 1.
+Can't use cheat cvar c_orthowidth in multiplayer, unless the server has sv_cheats set to 1.
+Can't use cheat cvar c_orthoheight in multiplayer, unless the server has sv_cheats set to 1.
+Unknown command "mat_spewalloc"
+Network: IP 192.168.1.192, mode MP, dedicated No, ports 27015 SV / 27005 CL
+Compact freed 225280 bytes
+'overrides/engineer.cfg' not present; not executing.
+'app/engineer.cfg' not present; not executing.
+Compact freed 241664 bytes
+Teams have been switched.
+CHANGE LEVEL: cp_gravelpit
+---- Host_Changelevel ----
+CMaterial::PrecacheVars: error loading vmt file for models/props_forest/cliff_wall_102a
+CMaterial::PrecacheVars: error loading vmt file for models/props_foliage/pines/tree_pine_thin_leaf_01
+CMaterial::PrecacheVars: error loading vmt file for models/props_foliage/pines/tree_pine_thin_trunk
+CMaterial::PrecacheVars: error loading vmt file for models/props_foliage/pines/tree_pine_thin_leaf_02
+CMaterial::PrecacheVars: error loading vmt file for models/props_foliage/pines/tree_pine_thin_leaf_03
+CMaterial::PrecacheVars: error loading vmt file for models/props_foliage/pines/tree_pine_thin_leaf_04
+CMaterial::PrecacheVars: error loading vmt file for models/props_forest/cliff_wall_101a
+CMaterial::PrecacheVars: error loading vmt file for models/props_forest/cliff_wall_01a
+CMaterial::PrecacheVars: error loading vmt file for models/props_altitude/tank001_altitude
+CMaterial::PrecacheVars: error loading vmt file for models/props_altitude/cablecar
+CMaterial::PrecacheVars: error loading vmt file for models/props_altitude/cablecar_mechanism
+CMaterial::PrecacheVars: error loading vmt file for models/props_altitude/conveyer_belt
+CMaterial::PrecacheVars: error loading vmt file for models/props_altitude/conveyer_belt_red
+CMaterial::PrecacheVars: error loading vmt file for models/props_altitude/mechanism_wheels03
+CMaterial::PrecacheVars: error loading vmt file for models/props_altitude/mechanism_wheels02
+CMaterial::PrecacheVars: error loading vmt file for models/props_altitude/silo_top001_snow
+CMaterial::PrecacheVars: error loading vmt file for models/props_mvm/mine_rocks_a
+CMaterial::PrecacheVars: error loading vmt file for models/props_altitude/ski_chair
+CMaterial::PrecacheVars: error loading vmt file for models/props_altitude/ski_lift
+CMaterial::PrecacheVars: error loading vmt file for models/props_altitude/ski_lift_grate
+CMaterial::PrecacheVars: error loading vmt file for models/props_altitude/mechanism_wheels01
+MDLCache: Failed load of .VVD data for bots/boss_bot/anim_tank.mdl
+MDLCache: Failed load of .VVD data for props_altitude\cablecar.mdl
+MDLCache: Failed load of .VVD data for props_altitude\cablecar_skybox.mdl
+MDLCache: Failed load of .VVD data for props_altitude\cablecar_wheels.mdl
+MDLCache: Failed load of .VVD data for props_altitude\conveyer_belt_altitude.mdl
+MDLCache: Failed load of .VVD data for props_altitude\mechanism_wheels01.mdl
+MDLCache: Failed load of .VVD data for props_altitude\mechanism_wheels01a.mdl
+MDLCache: Failed load of .VVD data for props_altitude\mechanism_wheels02.mdl
+MDLCache: Failed load of .VVD data for props_altitude\mechanism_wheels03.mdl
+MDLCache: Failed load of .VVD data for props_altitude\silo_top001_snow.mdl
+MDLCache: Failed load of .VVD data for props_altitude\ski_chair.mdl
+MDLCache: Failed load of .VVD data for props_altitude\ski_chair_skybox.mdl
+MDLCache: Failed load of .VVD data for props_altitude\ski_lift_medium.mdl
+MDLCache: Failed load of .VVD data for props_altitude\ski_lift_short.mdl
+MDLCache: Failed load of .VVD data for props_altitude\ski_lift_tall.mdl
+MDLCache: Failed load of .VVD data for props_altitude\ski_lift_tall_skybox.mdl
+MDLCache: Failed load of .VVD data for props_altitude\tank001_altitude.mdl
+MDLCache: Failed load of .VVD data for props_foliage\tree_pine_thin_1.mdl
+MDLCache: Failed load of .VVD data for props_foliage\tree_pine_thin_2.mdl
+MDLCache: Failed load of .VVD data for props_foliage\tree_pine_thin_3.mdl
+MDLCache: Failed load of .VVD data for props_foliage\tree_pine_thin_pile.mdl
+MDLCache: Failed load of .VVD data for props_foliage\tree_pine_thin_pile_skybox.mdl
+MDLCache: Failed load of .VVD data for props_rocks\cliff_wall_01.mdl
+MDLCache: Failed load of .VVD data for props_rocks\cliff_wall_02c_mirrored.mdl
+MDLCache: Failed load of .VVD data for props_rocks\cliff_wall_06.mdl
+MDLCache: Failed load of .VVD data for props_rocks\cliff_wall_06_mirrored.mdl
+MDLCache: Failed load of .VVD data for props_rocks/cliff_wall_10.mdl
+MDLCache: Failed load of .VVD data for props_rocks/cliff_wall_10_mirrored.mdl
+MDLCache: Failed load of .VVD data for props_rocks/cliff_wall_10a.mdl
+MDLCache: Failed load of .VVD data for props_rocks/cliff_wall_10a_mirrored.mdl
+MDLCache: Failed load of .VVD data for props_rocks/mine_rocks03_large.mdl
+'cp_gravelpit.cfg' not present; not executing.
+Map: cp_gravelpit
+Server Number: 2
+Requesting texture value from var "$basetexture" which is not a texture value (material: skybox/sky_gravel_01rt)
+Requesting texture value from var "$basetexture" which is not a texture value (material: skybox/sky_gravel_01bk)
+Requesting texture value from var "$basetexture" which is not a texture value (material: skybox/sky_gravel_01lf)
+Requesting texture value from var "$basetexture" which is not a texture value (material: skybox/sky_gravel_01ft)
+Compact freed 299008 bytes
+CHANGE LEVEL: cp_dustbowl
+SOLID_VPHYSICS static prop with no vphysics model! (models/props_foliage/grass_02_cluster01.mdl)
+'cp_dustbowl.cfg' not present; not executing.
+Map: cp_dustbowl
+Server Number: 3
+Compact freed 106496 bytes
+CHANGE LEVEL: cp_granary
+SOLID_VPHYSICS static prop with no vphysics model! (models/soldier_statue/fence_heads.mdl)
+SOLID_VPHYSICS static prop with no vphysics model! (models/effects/vol_light.mdl)
+'cp_granary.cfg' not present; not executing.
+Map: cp_granary
+Server Number: 4
+DataTable warning: player: Out-of-range value (359.000000/90.000000) in SendPropFloat 'm_angEyeAngles[0]', clamping.
+Compact freed 212992 bytes
+Compact freed 249856 bytes
+Compact freed 196608 bytes
+Unknown command: tf_bot
+NextBot tickrate changed from 0 (0.000ms) to 7 (0.105ms)
+Unknown command: sv_cheat
+Buddha Mode on...
+noclip ON
+Glorified Toaster with Legs defended First Capture point for team #2
+Kill Me killed Glorified Toaster with Legs with tf_projectile_pipe.
+The Administrator, Archimedes!, It's Filthy in There!, Kill Me, captured First Capture point for team #3
+Chucklenuts killed Mega Baboon with scattergun.
+noclip OFF
+Kill Me killed SMELLY UNFORTUNATE with tf_projectile_pipe.
+Ribs Grow Back defended Second Capture point for team #2
+Ribs Grow Back killed Kill Me with tf_projectile_rocket. (crit)
+Mentlegen killed Archimedes! with shotgun_primary.
+Chucklenuts killed Ribs Grow Back with pistol_scout.
+Mentlegen killed Chucklenuts with shotgun_primary.
+"mp_disable_respawn_times" = "0"
+ game notify replicated
+It's Filthy in There! killed Glorified Toaster with Legs with minigun.
+Archimedes! killed SMELLY UNFORTUNATE with tf_projectile_rocket.
+It's Filthy in There! killed Mega Baboon with minigun.
+It's Filthy in There! killed Ribs Grow Back with minigun.
+Archimedes! killed Mentlegen with tf_projectile_rocket.
+The Administrator, It's Filthy in There!, Chucklenuts captured Second Capture point for team #3
+Mega Baboon killed Chucklenuts with tf_projectile_pipe.
+Mentlegen killed It's Filthy in There! with obj_sentrygun.
+Ribs Grow Back killed Archimedes! with tf_projectile_rocket.
+Archimedes! killed Mega Baboon with tf_projectile_rocket.
+Glorified Toaster with Legs defended Final Capture point for team #2
+WaefreBeorn captured Final Capture point for team #3
+Chucklenuts killed Glorified Toaster with Legs with scattergun. (crit)
+Archimedes! killed SMELLY UNFORTUNATE with shotgun_soldier. (crit)
+Archimedes! killed Ribs Grow Back with shotgun_soldier. (crit)
+Chucklenuts killed Mentlegen with scattergun. (crit)
+Achievements disabled: cheats turned on in this app session.
+Kill Me suicided.
+Glorified Toaster with Legs killed It's Filthy in There! with minigun.
+Glorified Toaster with Legs killed The Administrator with minigun.
+Ribs Grow Back killed Chucklenuts with tf_projectile_rocket.
+Glorified Toaster with Legs killed Archimedes! with minigun.
+Ribs Grow Back killed Kill Me with tf_projectile_rocket.
+Mega Baboon, Glorified Toaster with Legs captured First Capture point for team #3
+Kill Me killed Mentlegen with tf_projectile_pipe.
+Archimedes! killed Ribs Grow Back with tf_projectile_rocket.
+Glorified Toaster with Legs killed Kill Me with minigun.
+WaefreBeorn killed Glorified Toaster with Legs with robot_arm_combo_kill. (crit)
+It's Filthy in There! killed Mentlegen with minigun.
+DataTable warning: prop_dynamic: Out-of-range value (1.000000/1.000000) in SendPropFloat 'm_vecNormal', clamping.
+It's Filthy in There! killed Ribs Grow Back with world.
+It's Filthy in There! killed Mentlegen with minigun. (crit)
+Mega Baboon killed The Administrator with tf_projectile_pipe.
+WaefreBeorn killed SMELLY UNFORTUNATE with robot_arm.
+Chucklenuts killed Glorified Toaster with Legs with scattergun.
+Ribs Grow Back suicided.
+WaefreBeorn killed Mentlegen with robot_arm.
+WaefreBeorn killed Ribs Grow Back with world.
+It's Filthy in There! killed Mega Baboon with minigun. (crit)
+Glorified Toaster with Legs killed Chucklenuts with minigun.
+Mentlegen killed The Administrator with obj_sentrygun.
+It's Filthy in There! defended Second Capture point for team #2
+Mentlegen killed Chucklenuts with obj_sentrygun.
+Kill Me killed Mentlegen with tf_projectile_pipe_remote.
+Ribs Grow Back killed Kill Me with shotgun_soldier.
+Chucklenuts killed Ribs Grow Back with scattergun.
+Chucklenuts killed Mega Baboon with scattergun. (crit)
+Archimedes! killed Mentlegen with tf_projectile_rocket. (crit)
+Chucklenuts killed Ribs Grow Back with pistol_scout. (crit)
+Glorified Toaster with Legs suicided.
+Dropped Chucklenuts from server (Server shutting down)
+Dropped Glorified Toaster with Legs from server (Server shutting down)
+Dropped Kill Me from server (Server shutting down)
+Dropped Mega Baboon from server (Server shutting down)
+Dropped It's Filthy in There! from server (Server shutting down)
+Dropped Ribs Grow Back from server (Server shutting down)
+Dropped Archimedes! from server (Server shutting down)
+Dropped Mentlegen from server (Server shutting down)
+Dropped The Administrator from server (Server shutting down)
+Dropped SMELLY UNFORTUNATE from server (Server shutting down)

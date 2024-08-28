@@ -21,10 +21,10 @@ from obs_websocket import OBSWebSocket
 from tf2_events import TF2Events
 
 # Default values
-default_tf2_path = "K:/SteamLibrary/steamapps/common/Team Fortress 2/tf/console.log"
-obs_host_default = "localhost"
+default_tf2_path = "C:/Program Files (x86)/Steam/steamapps/common/Team Fortress 2/tf/console.log"
+obs_host_default = "192.168.1.192"
 obs_port_default = 4455
-obs_password_default = "GaShyxLNXG1XT4qy"
+obs_password_default = "5eg1gfmoM9deAblf"
 steam_username_default = "WaefreBeorn"
 steam_id_default = "76561198027081583"
 
@@ -40,7 +40,8 @@ class TF2LogHandler(PatternMatchingEventHandler):
         self.debug_callback(f"Starting to monitor from position: {self.last_position}")
         self.tf2_events = TF2Events(player_name) 
         self.use_images = use_images
-        self.obs_effect_queue = queue.Queue()        
+        self.obs_effect_queue = queue.Queue()  
+        self.last_check_had_content = False        
         self.overlay_sources = {
             "kill": "KillOverlay",
             "death": "DeathOverlay",
@@ -113,7 +114,6 @@ class TF2LogHandler(PatternMatchingEventHandler):
     def check_file(self):
         if self.stop_event.is_set():
             return
-        self.debug_callback(f"Checking log file: {self.log_file_path}")
         try:
             current_size = self.get_file_size(self.log_file_path)
             if current_size > self.last_position:
@@ -121,14 +121,20 @@ class TF2LogHandler(PatternMatchingEventHandler):
                     log_file.seek(self.last_position)
                     new_lines = log_file.readlines()
                     self.last_position = log_file.tell()
-                    self.debug_callback(f"Read {len(new_lines)} new lines from log file.")
-                    self.process_new_lines(new_lines)
+                    if new_lines:
+                        self.debug_callback(f"Read {len(new_lines)} new lines from log file.")
+                        self.process_new_lines(new_lines)
+                        self.last_check_had_content = True
+                    elif self.last_check_had_content:
+                        self.debug_callback("No new content in log file.")
+                        self.last_check_had_content = False
             elif current_size < self.last_position:
                 self.debug_callback("Log file size decreased. File might have been truncated or replaced.")
                 self.last_position = 0
                 self.check_file()  # Recheck the file from the beginning
-            else:
+            elif self.last_check_had_content:
                 self.debug_callback("No new content in log file.")
+                self.last_check_had_content = False
         except Exception as e:
             self.debug_callback(f"Error reading log file: {e}")
             self.debug_callback(traceback.format_exc())
@@ -287,17 +293,24 @@ class TF2LogHandler(PatternMatchingEventHandler):
     
             if class_name in class_media_sources:
                 media_source_name = class_media_sources[class_name]
-    
-                for source_name in class_media_sources.values():
-                    self.obs_client.send_request("SetMediaSourceEnabled", {
-                        "sourceName": source_name,
-                        "sourceEnabled": source_name == media_source_name
-                    })
+                current_scene = self.obs_client.get_current_scene()
+                
+                if current_scene:
+                    for source_name in class_media_sources.values():
+                        if self.use_images:
+                            # For image sources, we use SetSceneItemEnabled
+                            self.obs_client.set_scene_item_enabled(current_scene, source_name, source_name == media_source_name)
+                        else:
+                            # For media sources, we use SetInputMute
+                            self.obs_client.set_input_mute(source_name, source_name != media_source_name)
+                else:
+                    self.debug_callback("Failed to get current scene name. Skipping class overlay update.")
             else:
                 self.debug_callback(f"Unknown class: {class_name}")
         except Exception as e:
             self.debug_callback(f"Error updating class overlay: {str(e)}")
-    
+            self.debug_callback(traceback.format_exc())
+            
     def handle_build_destroy_event(self, event_type):
         try:
             object_type = event_type.split("_")[1]
@@ -333,10 +346,11 @@ class TF2OBSPlugin:
         self.monitoring_thread = None
         self.stop_event = threading.Event()
         self.obs_connected = False
-
+        self.is_running = True
         self.create_widgets()
         self.debug_queue = queue.Queue()
         self.root.after(100, self.process_debug_queue)
+        self.process_debug_queue_id = None        
         self.last_debug_time = 0
         self.use_images = False  # Default value
         self.event_handler = None
@@ -351,7 +365,11 @@ class TF2OBSPlugin:
         self.tf2_dir_entry.grid(row=0, column=1, padx=10, pady=10)
         self.tf2_dir_entry.insert(0, default_tf2_path)
         tk.Button(self.root, text="Browse", command=self.select_directory).grid(row=0, column=2, padx=10, pady=10)
-    
+
+        # Delete console.log button
+        self.delete_log_button = tk.Button(self.root, text="Delete console.log", command=self.delete_console_log)
+        self.delete_log_button.grid(row=14, column=0, columnspan=3, padx=10, pady=20)
+
         # Steam username
         tk.Label(self.root, text="Enter Your Steam Username:").grid(row=1, column=0, padx=10, pady=10)
         self.steam_username_entry = tk.Entry(self.root, width=50)
@@ -510,6 +528,23 @@ class TF2OBSPlugin:
 
         self.debug_callback("OBS effect processing thread ended.")
         
+
+    def process_debug_queue(self):
+        if not self.is_running:
+            return
+        try:
+            while True:
+                message = self.debug_queue.get_nowait()
+                if self.is_running:
+                    self.debug_output.insert(tk.END, f"{message}\n")
+                    self.debug_output.see(tk.END)
+                print(message)
+        except queue.Empty:
+            pass
+        finally:
+            if self.is_running:
+                self.process_debug_queue_id = self.root.after(100, self.process_debug_queue)
+
     def stop_script(self):
         if self.monitoring_thread and self.monitoring_thread.is_alive():
             self.debug_callback("Stopping monitoring...")
@@ -525,26 +560,30 @@ class TF2OBSPlugin:
                 self.debug_callback("Warning: OBS effect thread did not stop gracefully.")
             else:
                 self.debug_callback("OBS effect thread stopped successfully.")
-        self.start_button.config(state=tk.NORMAL)
-        self.stop_button.config(state=tk.DISABLED)
-        
-    def debug_callback(self, message):
-        self.debug_queue.put(message)
+        if self.is_running:
+            try:
+                self.start_button.config(state=tk.NORMAL)
+                self.stop_button.config(state=tk.DISABLED)
+            except tk.TclError:
+                pass  # Ignore Tkinter errors during shutdown
 
-    def process_debug_queue(self):
-        try:
-            while True:
-                message = self.debug_queue.get_nowait()
-                self.debug_output.insert(tk.END, f"{message}\n")
-                self.debug_output.see(tk.END)
-                print(message)
-        except queue.Empty:
-            pass
-        finally:
-            self.root.after(100, self.process_debug_queue) 
+    def delete_console_log(self):
+        directory = os.path.dirname(self.tf2_dir_entry.get())
+        log_path = os.path.join(directory, "console.log")
+        if os.path.exists(log_path):
+            try:
+                os.remove(log_path)
+                self.debug_callback(f"Deleted console.log from {directory}")
+                messagebox.showinfo("Success", f"console.log deleted from {directory}")
+            except Exception as e:
+                self.debug_callback(f"Error deleting console.log: {str(e)}")
+                messagebox.showerror("Error", f"Failed to delete console.log: {str(e)}")
+        else:
+            self.debug_callback(f"console.log not found in {directory}")
+            messagebox.showinfo("Info", f"console.log not found in {directory}")
+
 
     def cleanup(self):
-        """Clean up resources when the application exits."""
         self.debug_callback("Cleaning up resources...")
         if self.obs_client and self.obs_client.connected:
             self.obs_client.close()
@@ -553,11 +592,16 @@ class TF2OBSPlugin:
         self.debug_callback("Cleanup complete.")
 
     def on_closing(self):
-        """Handle the window close event."""
-        if messagebox.askokcancel("Quit", "Do you want to quit?"):
-            self.cleanup()
-            self.root.destroy()
-            
+        self.is_running = False
+        if self.process_debug_queue_id:
+            self.root.after_cancel(self.process_debug_queue_id)
+        self.cleanup()
+        self.root.quit()
+
+    def debug_callback(self, message):
+        self.debug_queue.put(message)
+        print(message)
+
             
 def show_obs_info():
     info_text = """
@@ -633,17 +677,17 @@ Important:
 def main():
     root = tk.Tk()
     app = TF2OBSPlugin(root)
-    root.protocol("WM_DELETE_WINDOW", app.on_closing)  # Handle window close event
-
+    
     try:
-        while True:
-            root.update()
-            app.process_debug_queue()
-            time.sleep(0.1)
-    except KeyboardInterrupt:
-        print("Application terminated by user.")
+        root.mainloop()
+    except Exception as e:
+        print(f"An error occurred: {e}")
     finally:
-        app.cleanup()
+        app.is_running = False
+        try:
+            root.destroy()
+        except tk.TclError:
+            pass  # Ignore Tkinter errors during shutdown
 
 if __name__ == "__main__":
     main()
