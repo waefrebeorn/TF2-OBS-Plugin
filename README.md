@@ -1,74 +1,100 @@
+Here's an improved and updated README for the TF2-OBS-Plugin:
+
+```markdown
 # TF2-OBS-Plugin
-This code creates a **TF2 OBS Plugin** that enhances your Team Fortress 2 streaming experience by integrating with OBS Studio. 
 
-**Key Features:**
+Enhance your Team Fortress 2 streaming experience with dynamic overlays and scene transitions based on in-game actions!
 
-* **Monitors TF2 console log:** Watches for in-game events like kills, deaths, and suicides.
-* **Triggers OBS scenes and sources:** Automatically switches scenes or enables/disables overlays in response to events.
-* **Customizable:** Configure your TF2 log file path, Steam username, OBS connection details, and more.
-* **Real-time debug output:** Provides feedback on connection status and events in a clear and concise manner.
+## Overview
 
-**How it works:**
+TF2-OBS-Plugin is a Python-based tool that integrates Team Fortress 2 with OBS Studio, providing real-time visual feedback for various in-game events. This plugin monitors the TF2 console log and triggers corresponding actions in OBS, creating a more engaging and interactive streaming experience.
 
-* The plugin reads the TF2 console log in real-time.
-* It identifies relevant events based on specific patterns in the log messages.
-* When an event is triggered, it sends commands to OBS via WebSocket to change scenes or manipulate sources.
+## Key Features
 
-**True Irony**
-* simpleobsws and obsws-python, the plugins used as requirements in this project are both broken in obs currently and you have to rewrite the hash stuff 
-* credit to mud_punk in thread https://obsproject.com/forum/threads/python-script-to-connect-to-obs-websocket-server-help.173395/ for noting the exact code he used
-* Please notify the obs team to update documentation and plugin recommendations that use these libraries 
+- **Real-time Event Monitoring**: Watches TF2 console log for various in-game events (kills, deaths, captures, etc.).
+- **Dynamic OBS Integration**: Automatically toggles visibility of scenes and sources in response to game events.
+- **Extensive Event Coverage**: Supports a wide range of TF2 events, from basic kills to specific class actions.
+- **Customizable Configuration**: Easily set up your TF2 log file path, Steam username, and OBS connection details.
+- **Live Debug Output**: Provides real-time feedback on connection status and detected events.
+- **Flexible Overlay System**: Works independently of your current OBS scene, allowing for versatile stream layouts.
 
-**Enhance your TF2 streams with dynamic overlays and scene transitions based on your in-game actions!** 
+## How It Works
 
-**Here's a list of OBS scenes and media sources you need to create based on the provided Python code:**
+1. The plugin continuously reads the TF2 console log in real-time.
+2. It identifies relevant events using regex patterns matched against log messages.
+3. When an event is detected, it sends commands to OBS via WebSocket to toggle the visibility of corresponding sources.
 
-**Scenes:**
+## Setup Instructions
 
-* NotificationScene: This scene will be used specifically for displaying notifications during the game.
+### OBS Studio Setup
 
-**Media Sources:**
+1. Install the obs-websocket plugin for OBS Studio.
+2. In OBS, go to Tools -> WebSocket Server Settings to configure your server.
+3. Create a new scene called "Tf2Scene" for your main TF2 gameplay.
+4. Add the following sources to your OBS setup:
 
-* KillOverlay: This media source will be triggered when you get a kill in TF2.
+   - KillOverlay (Media Source)
+   - DeathOverlay (Media Source)
+   - SuicideOverlay (Media Source)
+   - CaptureOverlay (Media Source)
+   - NotificationOverlay (Media Source)
+   - KillstreakText (Text GDI+ Source)
+   - NotificationText (Text GDI+ Source)
+   - ScoutOverlay, SoldierOverlay, PyroOverlay, etc. (Media Sources for each class)
+   - PickedIntel, DroppedIntel, HasIntel (Media Sources)
+   - BuiltSentry, BuiltDispenser, BuiltTeleEntrance, BuiltTeleExit (Media Sources)
+   - DestroyedSentry, DestroyedDispenser, DestroyedTeleEntrance, DestroyedTeleExit (Media Sources)
+   - Domination, Dominated, Revenge, Stunned, Jarated, Milked, Extinguished, Spawned, etc. (Media Sources for various events)
 
-* DeathOverlay: This media source will be triggered when you die in TF2.
+   (Refer to the full list in the plugin code for all required sources)
 
-* SuicideOverlay: This media source will be triggered when you commit suicide in TF2.
+### Team Fortress 2 Setup
 
-* CaptureOverlay: This media source will be triggered when you capture a point in TF2.
+1. Add the following launch options to TF2:
+   ```
+   -condebug -console -log_verbose_enable 1
+   ```
+   This enables detailed console logging necessary for the plugin.
 
-* NotificationOverlay: This media source will be triggered to display general notifications.
+### Plugin Setup
 
-* KillstreakText: This is a text source that will display your current killstreak.
+1. Clone this repository:
+   ```
+   git clone https://github.com/yourusername/TF2-OBS-Plugin.git
+   ```
+2. Install the required Python libraries:
+   ```
+   pip install -r requirements.txt
+   ```
+3. Run the plugin:
+   ```
+   python main.py
+   ```
+4. In the GUI, enter your TF2 log file path, Steam username, and OBS WebSocket details.
+5. Click "Connect to OBS" and then "Start Monitoring" to begin.
 
-* NotificationText: This is a text source that will display the content of notifications.
+## Important Notes
 
-* ScoutOverlay, SoldierOverlay, PyroOverlay, DemomanOverlay, HeavyOverlay, EngineerOverlay, MedicOverlay, SniperOverlay, SpyOverlay, HaleOverlay: These media sources represent the class overlays that will be displayed based on the class you are currently playing.
+- Ensure that the names of scenes and sources in OBS match exactly with those listed in the plugin code.
+- The plugin toggles source visibility independently of the current scene, allowing for flexible OBS layouts.
+- Some users have reported issues with certain OBS WebSocket Python libraries. If you encounter connection problems, you may need to modify the WebSocket connection code.
 
-* PickedIntel, DroppedIntel, HasIntel: These media sources will be triggered when you pick up, drop, or have the intelligence, respectively.
+## Troubleshooting
 
-* BuiltSentry, BuiltDispenser, BuiltTeleEntrance, BuiltTeleExit: These media sources will be triggered when you build a sentry gun, dispenser, teleporter entrance, or teleporter exit, respectively.
+- If you're having trouble connecting to OBS, double-check your WebSocket server settings in OBS and ensure they match what you've entered in the plugin.
+- Make sure your TF2 launch options are set correctly to enable detailed logging.
+- Check the debug output in the plugin GUI for any error messages or connection issues.
 
-* DestroyedSentry, DestroyedDispenser, DestroyedTeleEntrance, DestroyedTeleExit: These media sources will be triggered when you destroy a sentry gun, dispenser, teleporter entrance, or teleporter exit, respectively
+## Contributing
 
-* Domination, Dominated, Revenge, Stunned, Jarated, Milked, Extinguished, Spawned, MedicUber, MedicCharge, SpyDisguise, SpyBackstab, EngiTeleport, SniperHeadshot, PyroAirblast, DemoTrap, HeavyEating, CritBoosted, MiniCritBoosted, Damage, Healed, Assist, RoundWin, RoundStalemate, MatchWin, FirstBlood: These media sources correspond to various in-game events and will be triggered accordingly.
+Contributions to improve the plugin are welcome! Please feel free to submit pull requests or open issues for any bugs or feature requests.
 
-**Important Notes:**
+## License
 
-Make sure the names of these scenes and sources in OBS match exactly as they are listed here in the code.
-The types of media sources (e.g., image, video, text) are not explicitly specified in the code, so you will need to choose appropriate media types based on how you want to visually represent these events in your OBS stream.
-Remember to add -condebug to your TF2 launch options to enable detailed console logging, which is necessary for this plugin to work correctly.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-The source changes triggered by the TF2 OBS Plugin are **independent of the scene you're currently in.** This means you can have a dedicated "TF2 Scene" with your ScoutOverlay, SoldierOverlay, and other class-specific sources, and the plugin will still be able to control their visibility as needed.
+## Acknowledgements
 
-**How it works:**
-
-The plugin directly interacts with the OBS sources themselves, turning them on or off (making them visible or invisible) regardless of which scene is active at the moment. This allows you to have a flexible setup where you can design your scenes however you like, and the plugin will handle the dynamic overlay elements on top of that.
-
-**Example:**
-
-You're in your **"TF2 Scene"** which already has the **ScoutOverlay** visible because you're playing as Scout.
-You get a kill, triggering the **"KillOverlay"**.
-The plugin will temporarily make the **KillOverlay** visible, even though it might be in a different scene.
-After a few seconds (as defined in the code), the **KillOverlay** will be hidden again, and your "TF2 Scene" with the ScoutOverlay will remain as it was.
-Key takeaway: You have full control over your scene design, and the plugin will seamlessly integrate the event-triggered overlays on top of it.
+- Thanks to the OBS Project for creating OBS Studio and the WebSocket plugin.
+- Credit to mud_punk for their insights on OBS WebSocket connections in Python.
+```
