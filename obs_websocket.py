@@ -5,8 +5,10 @@ import hashlib
 import time
 import traceback
 import queue
+import random
 import threading
 import ssl
+from cachetools import TTLCache 
 
 class OBSWebSocket:
     def __init__(self, host, port, password, debug_callback=None):
@@ -22,6 +24,10 @@ class OBSWebSocket:
         self.event_queue = queue.Queue()
         self.receive_thread = None
         self.pending_requests = {}
+        self.cache = TTLCache(maxsize=100, ttl=60)  # Cache up to 100 items for 60 seconds
+        self.cache_lock = threading.Lock()  # Add this line 
+
+
         
     def connect(self):
         url = f"ws://{self.host}:{self.port}"
@@ -43,14 +49,14 @@ class OBSWebSocket:
             self.receive_thread.start()
     
             # Verify connection with a test request
-            self.debug_callback("Sending test request (GetVersion)")
-            test_response = self.send_request("GetVersion", timeout=5)
-            self.debug_callback(f"Test response received: {test_response}")
+            #self.debug_callback("Sending test request (GetVersion)")
+            #test_response = self.send_request("GetVersion", timeout=5)
+            #self.debug_callback(f"Test response received: {test_response}")
             
-            if test_response and 'd' in test_response and 'responseData' in test_response['d']:
-                self.debug_callback(f"Connected to OBS successfully! Version: {test_response['d']['responseData']['obsVersion']}")
-            else:
-                raise Exception("Failed to verify OBS connection: Invalid response format")
+            #if test_response and 'd' in test_response and 'responseData' in test_response['d']:
+            #    self.debug_callback(f"Connected to OBS successfully! Version: {test_response['d']['responseData']['obsVersion']}")
+            #else:
+            #    raise Exception("Failed to verify OBS connection: Invalid response format")
     
             self.debug_callback("Caching scene item IDs")
             self.cache_scene_item_ids()
@@ -136,7 +142,18 @@ class OBSWebSocket:
                         self.response_queue.put(data)
                 elif data['op'] == 5:  # Event
                     self.event_queue.put(data)
-                self.debug_callback(f"Received from OBS: {json.dumps(data, indent=2)}")
+    
+                    # Invalidate cache for relevant events
+                    event_type = data['d'].get('eventType')
+                    if event_type in [
+                        'SceneItemAdded', 'SceneItemRemoved', 'SceneItemVisibilityChanged',
+                        'SceneItemTransformChanged', 'SceneItemSelected', 'SceneItemDeselected'
+                    ]:
+                        self.clear_scene_item_id_cache()
+                        self.debug_callback(f"Invalidated scene item ID cache due to {event_type} event.")
+    
+                self.debug_callback(f"Processed message from OBS: {json.dumps(data, indent=2)}")
+
             except Exception as e:
                 self.debug_callback(f"Error in receive loop: {str(e)}")
                 time.sleep(0.1)
@@ -235,36 +252,25 @@ class OBSWebSocket:
     def set_current_scene(self, scene_name):
         return self.send_request("SetCurrentProgramScene", {"sceneName": scene_name})
 
-    def get_scene_item_id_with_retry(self, scene_name, source_name, max_retries=25):
-        for _ in range(max_retries):
-            scene_item_id = self.get_scene_item_id(scene_name, source_name)
-            if scene_item_id is not None:
-                return scene_item_id
-            time.sleep(0.1)  # Short delay between retries
-        return None
         
     def set_scene_item_enabled(self, scene_name, source_name, enabled):
         scene_item_id = self.get_scene_item_id(scene_name, source_name)
         if scene_item_id is None:
             self.debug_callback(f"Error: Could not find scene item ID for source '{source_name}' in scene '{scene_name}'")
             return False
-
+    
         response = self.send_request("SetSceneItemEnabled", {
             "sceneName": scene_name,
             "sceneItemId": scene_item_id,
             "sceneItemEnabled": enabled
         })
-
-        if response and 'd' in response:
-            if 'requestStatus' in response['d']:
-                return response['d']['requestStatus']['result']
-            else:
-                self.debug_callback(f"Warning: Unexpected response structure from SetSceneItemEnabled. Full response: {json.dumps(response, indent=2)}")
-                return False
+    
+        if response and 'd' in response and 'requestStatus' in response['d']:
+            return response['d']['requestStatus']['result']
         else:
             self.debug_callback(f"Error: Invalid response from SetSceneItemEnabled. Full response: {json.dumps(response, indent=2)}")
             return False
-          
+            
     def set_input_mute(self, input_name, muted):
         return self.send_request("SetInputMute", {
             "inputName": input_name,
@@ -325,36 +331,40 @@ class OBSWebSocket:
         return None
 
     def get_scene_item_id(self, scene_name, source_name):
-        """Gets the scene item ID, first checking the cache, then sending a request if not found."""
-        cache_key = f"{scene_name}:{source_name}"
-        scene_item_id = self.scene_item_ids.get(cache_key)
-
-        if scene_item_id is not None:
-            return scene_item_id
-
         response = self.send_request("GetSceneItemId", {
             "sceneName": scene_name,
-            "sourceName": source_name
+            "sourceName": str(source_name)  # Convert to string
         })
-
+    
         if response and 'd' in response and 'responseData' in response['d']:
-            response_data = response['d']['responseData']
-            if 'sceneItemId' in response_data:
-                scene_item_id = response_data['sceneItemId']
-                self.scene_item_ids[cache_key] = scene_item_id  # Cache the ID
-                return scene_item_id
-
-        self.debug_callback(f"Warning: Failed to get scene item ID for source '{source_name}' in scene '{scene_name}'")
-        return None
-
-    def get_scene_item_id_with_retry(self, scene_name, source_name, max_retries=25):
-        for _ in range(max_retries):
+            return response['d']['responseData'].get('sceneItemId')
+        else:
+            self.debug_callback(f"Error: Could not get scene item ID for source '{source_name}' in scene '{scene_name}'")
+            return None
+        
+    def clear_scene_item_id_cache(self):
+        with self.cache_lock:  # Acquire the lock before clearing the cache
+            self.scene_item_ids.clear()
+        if hasattr(self, 'debug_callback'):
+            self.debug_callback("Scene item ID cache cleared.")
+            
+    def get_scene_item_id_with_retry(self, scene_name, source_name, max_retries=5, base_delay=0.1, max_delay=10):
+        delay = base_delay
+        for attempt in range(max_retries):
             scene_item_id = self.get_scene_item_id(scene_name, source_name)
             if scene_item_id is not None:
                 return scene_item_id
-                time.sleep(0.1)  # Short delay between retries within get_scene_item_id_with_retry
+    
+            jitter = random.uniform(0, delay * 0.5)
+            time.sleep(delay + jitter)
+    
+            # Exponential backoff with a maximum delay
+            delay *= 2
+            delay = min(delay, max_delay)
+    
+        self.debug_callback(f"Failed to get scene item ID for source '{source_name}' in scene '{scene_name}' after {max_retries} attempts")
         return None
-
+        
     def set_input_settings(self, input_name, settings):
         return self.send_request("SetInputSettings", {
             "inputName": input_name,
@@ -364,19 +374,21 @@ class OBSWebSocket:
     def get_scene_item_properties(self, scene_name, item_id):
         """
         Gets the properties of a scene item in the specified scene.
-
         Args:
             scene_name (str): The name of the scene containing the item.
             item_id (int or str): The ID of the scene item.
-
         Returns:
             dict: A dictionary containing the scene item's properties, or None if an error occurs.
-        """
+        """ 
+        # Convert item_id to string if it's an integer
+        if isinstance(item_id, int):
+            item_id = str(item_id)
+    
         response = self.send_request("GetSceneItemProperties", {
             "sceneName": scene_name,
             "itemId": item_id
         })
-
+    
         if response and 'd' in response and 'sceneItemProperties' in response['d']:
             return response['d']['sceneItemProperties']
         else:

@@ -2,3 +2,4 @@ watchdog
 tk
 simpleobsws
 obsws-python
+cachetools
