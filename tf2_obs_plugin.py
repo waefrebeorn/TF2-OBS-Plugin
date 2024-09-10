@@ -16,6 +16,7 @@ from tf2_events import TF2Events
 from tf2_log_handler import TF2LogHandler
 from config import (default_tf2_path, obs_host_default, obs_port_default,
                     obs_password_default, steam_username_default, steam_id_default)
+from obs_info_window import show_obs_info                  
                     
                     
 class TF2OBSPlugin:
@@ -276,104 +277,3 @@ class TF2OBSPlugin:
         self.debug_queue.put(message)
         print(message)
 
-def show_obs_info():
-    info_text = """
-To make the app work with OBS, please create the following:
-
-Scenes:
-- Tf2Scene (your main scene for TF2 gameplay)
-
-Sources:
-- KillOverlay (Media Source)
-- DeathOverlay (Media Source)
-- SuicideOverlay (Media Source)
-- CaptureOverlay (Media Source)
-- NotificationOverlay (Media Source) 
-- KillstreakText (Text GDI+ Source)
-- NotificationText (Text GDI+ Source)
-- ScoutOverlay (Media Source)
-- SoldierOverlay (Media Source)
-- PyroOverlay (Media Source)
-- DemomanOverlay (Media Source)
-- HeavyOverlay (Media Source)
-- EngineerOverlay (Media Source)
-- MedicOverlay (Media Source)
-- SniperOverlay (Media Source)
-- SpyOverlay (Media Source)
-- HaleOverlay (Media Source)
-- PickedIntel (Media Source)
-- DroppedIntel (Media Source)
-- HasIntel (Media Source)
-- BuiltSentry (Media Source)
-- BuiltDispenser (Media Source)
-- BuiltTeleEntrance (Media Source)
-- BuiltTeleExit (Media Source)
-- DestroyedSentry (Media Source)
-- DestroyedDispenser (Media Source)
-- DestroyedTeleEntrance (Media Source)
-- DestroyedTeleExit (Media Source)
-- Domination (Media Source)
-- Dominated (Media Source)
-- Revenge (Media Source)
-- Stunned (Media Source)
-- Jarated (Media Source)
-- Milked (Media Source)
-- Extinguished (Media Source)
-- Spawned (Media Source)
-- MedicUber (Media Source)
-- MedicCharge (Media Source)
-- SpyDisguise (Media Source)
-- SpyBackstab (Media Source)
-- EngiTeleport (Media Source)
-- SniperHeadshot (Media Source)
-- PyroAirblast (Media Source)
-- DemoTrap (Media Source)
-- HeavyEating (Media Source)
-- CritBoosted (Media Source)
-- MiniCritBoosted (Media Source)
-- Damage (Media Source)
-- Healed (Media Source)
-- Assist (Media Source)
-- RoundWin (Media Source)
-- RoundStalemate (Media Source)
-- MatchWin (Media Source)
-- FirstBlood (Media Source)
-- MultiKill (Media Source)
-- Killstreak (Media Source)
-- CapPointBlocked (Media Source)
-- TeleporterUsed (Media Source)
-- DestroyedBuilding (Media Source)
-- SappedBuilding (Media Source)
-- UberchargeDeployed (Media Source)
-- DeflectedProjectile (Media Source)
-- EnvironmentKill (Media Source)
-- FlagPickedUp (Media Source)
-- FlagCaptured (Media Source)
-- FlagDefended (Media Source)
-- CartPushed (Media Source)
-- CartBlocked (Media Source)
-- PointCaptured (Media Source)
-- PointDefended (Media Source)
-- MVMCreditCollected (Media Source)
-- MVMWaveCompleted (Media Source)
-- MVMBombReset (Media Source)
-- HalloweenBossKilled (Media Source)
-- HalloweenGiftGrabbed (Media Source)
-- PlayerUpgraded (Media Source)
-- PlayerTeleported (Media Source)
-- PlayerResupplied (Media Source)
-- PlayerStunned (Media Source)
-- PlayerIgnited (Media Source)
-- PlayerExtinguished (Media Source)
-- PlayerMVP (Media Source)
-- TauntKill (Media Source)
-- ContractCompleted (Media Source)
-- ContractPointsGained (Media Source)
-
-Ensure that these names match exactly in OBS. The app will trigger these sources based on your in-game events.
-
-Important:
-- Place the NotificationOverlay and NotificationText sources directly in your TF2 Scene.
-- Make sure to add -condebug -console -log_verbose_enable 1 to TF2 launch options to enable console output logging
-"""
-    messagebox.showinfo("OBS and TF2 Setup Info", info_text)
